@@ -1,0 +1,25 @@
+# ─────────────────────────────────────────────────────────────
+# Requirements — pipeline rPPG complète
+# ─────────────────────────────────────────────────────────────
+# Note : MediaPipe FaceMesh tourne côté NAVIGATEUR via CDN JS
+# (@mediapipe/face_mesh@0.4.1633559619), chargé directement dans
+# rppg_live.html. Aucun package Python "mediapipe" n'est requis.
+# ─────────────────────────────────────────────────────────────
+
+# ── server.py — capture live + BiSeNet (model.py / resnet.py) ──
+fastapi==0.110.0
+uvicorn[standard]==0.27.1
+websockets==12.0
+python-multipart==0.0.9
+torch==2.2.1
+torchvision==0.17.1
+opencv-python-headless==4.9.0.80
+numpy==1.26.4
+Pillow==10.2.0
+pandas==2.2.1
+
+# ── AnalyseRPPG.py — CHROM / POS / FFT sur CSV déjà extrait ──
+# Pas de BiSeNet ici : uniquement du traitement de signal.
+scipy==1.12.0
+matplotlib==3.8.3
+# (numpy et pandas déjà listés ci-dessus, partagés entre les deux scripts)
