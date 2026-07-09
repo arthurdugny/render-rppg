@@ -15,7 +15,6 @@ torch==2.2.1
 opencv-python-headless==4.9.0.80
 numpy==1.26.4
 Pillow==10.2.0
-pandas==2.2.1
 mediapipe==0.10.14
 python-multipart>=0.0.9
 
