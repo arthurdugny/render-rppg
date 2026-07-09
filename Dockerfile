@@ -12,9 +12,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server.py model.py resnet.py cnn1d_model.py ./
+COPY server.py cnn1d_model.py ./
 COPY inference_paume_video.py extract_rgb_paume_multi.py metrics.py ./
-COPY 79999_iter.pth best_cnn1d.pth ./
+COPY best_cnn1d.pth ./
 COPY rppg_live.html ./
 
 # Render fournit la variable PORT automatiquement

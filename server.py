@@ -25,7 +25,7 @@ import mediapipe as mp
 import numpy as np
 import pandas as pd
 import torch
-from torchvision import transforms
+
 from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 import uvicorn
@@ -39,10 +39,7 @@ print(f"[Device] {_device}")
 
 # ── Chemins ──────────────────────────────────────────────────────────
 HERE         = Path(__file__).parent
-SEMAINE2_DIR = HERE
-ANALYSE_DIR  = HERE
 CKPT_PATH    = HERE / "best_cnn1d.pth"
-BISENET_PATH = HERE / "79999_iter.pth"
 HTML_PATH    = HERE / "rppg_live.html"
 OUT_CSV      = HERE / "rppg_rgb.csv"
 OUT_META     = HERE / "rppg_rgb_meta.json"
@@ -65,39 +62,8 @@ _hands = mp.solutions.hands.Hands(
     min_detection_confidence=0.5, min_tracking_confidence=0.5,
 )
 
-# ── BiSeNet ───────────────────────────────────────────────────────────
-_bisenet_tf = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-])
-
-def load_bisenet():
-    sys.path.insert(0, str(SEMAINE2_DIR))
-    try:
-        from model import BiSeNet  # type: ignore
-        net = BiSeNet(n_classes=19)
-        if BISENET_PATH.exists():
-            net.load_state_dict(torch.load(str(BISENET_PATH), map_location="cpu"))
-            print("[BiSeNet] Poids chargés")
-        else:
-            print(f"[BiSeNet] {BISENET_PATH} introuvable — masque désactivé")
-        return net.to(_device).eval()
-    except Exception as e:
-        print(f"[BiSeNet] Erreur : {e} — masque désactivé")
-        return None
-
-def face_parsing_mask(bisenet, image_bgr):
-    if bisenet is None:
-        return np.ones(image_bgr.shape[:2], dtype=np.uint8) * 255
-    h, w = image_bgr.shape[:2]
-    rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
-    inp = cv2.resize(rgb, (512, 512))
-    tensor = _bisenet_tf(inp).unsqueeze(0).to(_device)
-    with torch.no_grad():
-        out = bisenet(tensor)[0]
-    parsing = out.squeeze(0).argmax(0).cpu().numpy().astype(np.uint8)
-    parsing = cv2.resize(parsing, (w, h), interpolation=cv2.INTER_NEAREST)
-    return np.where((parsing == 1) | (parsing == 10), np.uint8(255), np.uint8(0))
+def face_parsing_mask(image_bgr):
+    return np.ones(image_bgr.shape[:2], dtype=np.uint8) * 255
 
 # ── CNN1D ────────────────────────────────────────────────────────────
 
@@ -150,13 +116,13 @@ def _region_rgb(frame_bgr, mask, parsing, sigma=2.0):
         return np.nan, np.nan, np.nan
     return float(pix[:, 2].mean()), float(pix[:, 1].mean()), float(pix[:, 0].mean())
 
-def extract_face(bisenet, frame_bgr):
+def extract_face(frame_bgr):
     rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
     res = _face_mesh.process(rgb)
     if not res.multi_face_landmarks:
         return None
     lm = res.multi_face_landmarks[0].landmark
-    parsing = face_parsing_mask(bisenet, frame_bgr)
+    parsing = face_parsing_mask(frame_bgr)
     out = {}
     for name, idx in FACE_ROIS.items():
         m = polygon_mask(frame_bgr.shape, lm, idx)
@@ -255,15 +221,13 @@ class Session:
         self.palm_rows: list = []
         self.done = threading.Event()
         self.fps = 30.0
-        self.bisenet = None
         self.cnn1d   = None
         self.frame_count = 0
         self.cnn1d_result = None
         self._t0 = None
         self._t1 = None
 
-    def start(self, bisenet, cnn1d, fps):
-        self.bisenet = bisenet
+    def start(self, cnn1d, fps):
         self.cnn1d   = cnn1d
         self.fps = fps
         self.done.clear()
@@ -296,7 +260,7 @@ class Session:
                 continue
 
             # Face
-            face = extract_face(self.bisenet, frame)
+            face = extract_face(frame)
             row = {"frame": self.frame_count}
             for name in FACE_ROI_NAMES:
                 if face:
@@ -344,16 +308,15 @@ class Session:
 # ── FastAPI ───────────────────────────────────────────────────────────
 
 app = FastAPI()
-bisenet_model: Optional[object] = None
+
 cnn1d_model:   Optional[object] = None
 active_session: Optional[Session] = None
 
 
 @app.on_event("startup")
 def startup():
-    global bisenet_model, cnn1d_model
-    bisenet_model = load_bisenet()
-    cnn1d_model   = load_cnn1d()
+    global cnn1d_model
+    cnn1d_model = load_cnn1d()
 
 
 @app.get("/")
@@ -436,7 +399,7 @@ async def ws_endpoint(ws: WebSocket):
             if "text" in msg:
                 data = json.loads(msg["text"])
                 if data.get("type") == "START":
-                    session.start(bisenet_model, cnn1d_model, float(data.get("fps", 30)))
+                    session.start(cnn1d_model, float(data.get("fps", 30)))
                     await ws.send_text(json.dumps({"status": "started"}))
                 elif data.get("type") == "END":
                     session.end()
