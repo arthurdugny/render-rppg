@@ -12,11 +12,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY server.py model.py resnet.py ./
-COPY 79999_iter.pth ./
-
-# rppg_live.html optionnel — seulement si vous servez le HTML depuis ce serveur
-# (sinon Lovable héberge déjà le HTML, et ce backend ne fait que le WS + l'API)
+COPY server.py model.py resnet.py cnn1d_model.py ./
+COPY inference_paume_video.py extract_rgb_paume_multi.py metrics.py ./
+COPY 79999_iter.pth best_cnn1d.pth ./
 COPY rppg_live.html ./
 
 # Render fournit la variable PORT automatiquement

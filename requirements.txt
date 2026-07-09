@@ -1,9 +1,8 @@
 # ─────────────────────────────────────────────────────────────
 # Requirements — pipeline rPPG complète
 # ─────────────────────────────────────────────────────────────
-# Note : MediaPipe FaceMesh tourne côté NAVIGATEUR via CDN JS
-# (@mediapipe/face_mesh@0.4.1633559619), chargé directement dans
-# rppg_live.html. Aucun package Python "mediapipe" n'est requis.
+# Note : FaceMesh tourne côté navigateur (CDN JS).
+# MediaPipe Python est requis pour la détection de la paume (côté serveur).
 # ─────────────────────────────────────────────────────────────
 
 # ── server.py — capture live + BiSeNet (model.py / resnet.py) ──
@@ -17,6 +16,8 @@ opencv-python-headless==4.9.0.80
 numpy==1.26.4
 Pillow==10.2.0
 pandas==2.2.1
+mediapipe==0.10.14
+python-multipart>=0.0.9
 
 # ── AnalyseRPPG.py — CHROM / POS / FFT sur CSV déjà extrait ──
 # Pas de BiSeNet ici : uniquement du traitement de signal.
