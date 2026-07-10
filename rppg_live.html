@@ -279,7 +279,7 @@ const liveBpmEl= document.getElementById('live-bpm');
 const liveBpmVal=document.getElementById('live-bpm-val');
 
 const S = {
-  stream:null, recorder:null, chunks:[], recording:false,
+  stream:null, recorder:null, chunks:[], recording:false, analysing:false,
   startTs:null, timerInt:null, fpsInt:null,
   frameCount:0, fpsFrameCount:0, fpsLastTs:null, measuredFps:null,
   targetDur:30, videoBlob:null, mimeType:'video/mp4',
@@ -803,7 +803,7 @@ function initMediaPipe() {
     if (!rawHand) { _smoothedHandLms = null; S.handLandmarks = null; }
     else S.handLandmarks = smoothHandLandmarks(rawHand);
     if (S.landmarks) updateBpmEstimate();
-    if (!S.recording) {
+    if (!S.recording && !S.analysing) {
       if (S.landmarks && S.handLandmarks) statusEl.textContent = 'Visage + paume détectés';
       else if (S.landmarks) statusEl.textContent = 'Visage détecté — montrez la paume';
       else statusEl.textContent = 'Caméra active';
@@ -857,6 +857,7 @@ function connectWS(){
       statusEl.textContent=`Acquisition — ${msg.done} frames (queue: ${msg.queued})`;
       pushPalmGreen(msg.palm_g);
     } else if(msg.status==='done'){
+      S.analysing=false;
       if(msg.cnn1d){
         if(msg.cnn1d.error){ showAlert('CNN1D : '+msg.cnn1d.error,'warn'); }
         else { showCnn1dResults(msg.cnn1d); statusEl.textContent=`CNN1D terminé — HR = ${msg.cnn1d.hr_bpm} bpm`; }
@@ -965,7 +966,7 @@ function startRecording(){
 
 function stopRecording(){
   if(!S.recording) return;
-  S.recording=false; clearInterval(S.timerInt);
+  S.recording=false; S.analysing=true; clearInterval(S.timerInt);
   stopFrameCapture(); S.recorder.stop();
   // Figer les BPM live affichés
   _bpmLastUpdate = Infinity;
