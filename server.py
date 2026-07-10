@@ -143,6 +143,14 @@ class Session:
         self.frame_queue.put(None)
 
     def _loop(self):
+        try:
+            self._loop_inner()
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            self.done.set()
+
+    def _loop_inner(self):
         while True:
             item = self.frame_queue.get()
             if item is None:
