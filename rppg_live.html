@@ -742,10 +742,6 @@ function drawFrame() {
     drawMesh(W,H,_iT,boostFn);
     drawROIs(W,H);
     if(_iT===null) drawDots(W,H,boostFn);
-  } else if(!S.mpReady){
-    ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=1;ctx.setLineDash([6,4]);
-    ctx.beginPath();ctx.ellipse(W*.25,H*.45,W*.12,H*.32,0,0,Math.PI*2);ctx.stroke();
-    ctx.setLineDash([]);
   }
 
   // Hand overlay
