@@ -973,9 +973,13 @@ function stopRecording(){
   _palmBpmFrozen = true;
   if(ws&&ws.readyState===WebSocket.OPEN){
     ws.send(JSON.stringify({type:'END'}));
-    statusEl.textContent='Traitement Python en cours…';
+    statusEl.textContent='Analyse CNN1D en cours…';
+    setTimeout(()=>{ if(S.analysing){ S.analysing=false; showAlert('Délai dépassé — résultats indisponibles','warn'); btnRecord.disabled=false; } }, 90000);
+  } else {
+    S.analysing=false;
+    showAlert('Serveur non connecté — résultats indisponibles','warn');
+    btnRecord.disabled=false;
   }
-  btnRecord.disabled=true;
 }
 
 function finalizeRecording(){
