@@ -1004,13 +1004,14 @@ function finalizeRecording(){
   const form = new FormData();
   form.append('file', S.videoBlob, `facepalm.${ext}`);
   fetch(_isLocal ? `http://${location.hostname}:8000/process_video` : `/process_video`, { method:'POST', body:form })
-    .then(r => r.json())
+    .then(r => { console.log('[process_video] status', r.status); return r.json(); })
     .then(data => {
+      console.log('[process_video] data', data);
       if (data.error) { showAlert('CNN1D : ' + data.error, 'warn'); return; }
       showCnn1dResults(data);
       statusEl.textContent = `CNN1D terminé — HR = ${data.hr_bpm} bpm`;
     })
-    .catch(e => showAlert('CNN1D : ' + e.message, 'warn'));
+    .catch(e => { console.error('[process_video] erreur', e); showAlert('CNN1D : ' + e.message, 'warn'); });
 }
 
 // ── Affichage résultats ───────────────────────────────────────────
