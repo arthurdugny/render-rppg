@@ -498,7 +498,7 @@ const ROI_BLOBS = [
 function tickAnimPhase() {
   const now=performance.now(), dt=(now-_animLastT)/1000;
   _animLastT=now;
-  _animPhase += dt*(_bpmEst||72)/60*2*Math.PI;
+  _animPhase += dt*Math.min(_bpmEst||72, 90)/60*2*Math.PI;
 }
 
 // ── Dessin FaceMesh ───────────────────────────────────────────────
@@ -943,6 +943,7 @@ function startRecording(){
   S.recording=true; _recStartTs=performance.now();
   // Réinitialiser BPM paume
   _palmGreenBuf.length=0; _palmBpmLastUpdate=0; _palmBpmFrozen=false;
+  _palmBpmPrev=null; _palmBpmHoldCount=0;
   liveBpmPalmVal.style.fontSize='0.9rem'; liveBpmPalmVal.style.color='var(--muted)';
   liveBpmPalmVal.textContent='Collecte…';
   const capFps=S.stream.getVideoTracks()[0].getSettings().frameRate||S.measuredFps||30;
