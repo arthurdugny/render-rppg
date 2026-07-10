@@ -37,6 +37,7 @@ HTML_PATH = HERE / "rppg_live.html"
 sys.path.insert(0, str(HERE))
 from metrics import extract_all_metrics                                    # type: ignore
 from inference_paume_video import run_cnn1d_full, suppress_outlier_peaks   # type: ignore
+from extract_rgb_paume_multi import extract_rgb_paume_multi                # type: ignore
 
 # ── MediaPipe Hands ──────────────────────────────────────────────────
 _hands = mp.solutions.hands.Hands(
@@ -203,29 +204,37 @@ def index():
     return FileResponse(str(HTML_PATH)) if HTML_PATH.exists() else HTMLResponse("<h1>rppg_live.html introuvable</h1>")
 
 
+def _run_inference(video_path: str) -> dict:
+    """Inférence paume en-process (pas de subprocess) pour économiser la RAM."""
+    df, fps = extract_rgb_paume_multi(video_path)
+    arr = df.drop(columns=["frame"]).values.astype("float32")
+    rppg = suppress_outlier_peaks(run_cnn1d_full(arr, cnn1d_model, fps, _device))
+    m = extract_all_metrics(rppg, fps)
+    N = len(rppg)
+    freqs = np.fft.rfftfreq(N, d=1.0 / fps)
+    spec  = np.abs(np.fft.rfft(rppg))
+    mask  = (freqs >= 0.7) & (freqs <= 3.0)
+    freqs_m, spec_m = freqs[mask], spec[mask]
+    step = max(1, N // 600)
+    return {
+        "rppg_signal": rppg[::step].tolist(),
+        "freqs_bpm":   (freqs_m * 60).tolist(),
+        "spectrum":    (spec_m / (spec_m.max() + 1e-9)).tolist(),
+        "hr_bpm":      round(float(m.get("hr_bpm", float("nan"))), 1),
+        "n_frames":    N,
+        "fps":         round(fps, 3),
+    }
+
+
 @app.post("/process_video")
 async def process_video(file: UploadFile = File(...)):
-    """Lance inference_paume_video.py en subprocess — résultat identique à la commande manuelle."""
-    import subprocess, json as _json
     suffix = Path(file.filename).suffix if file.filename else ".mp4"
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
-    out_json = tmp_path + ".json"
     try:
-        script = HERE / "inference_paume_video.py"
-        print(f"[process_video] subprocess sur {tmp_path}…")
-        proc = await asyncio.get_event_loop().run_in_executor(None, lambda: subprocess.run(
-            [sys.executable, str(script),
-             "--video", tmp_path,
-             "--checkpoint", str(CKPT_PATH),
-             "--out_json", out_json],
-            capture_output=True, text=True, timeout=300
-        ))
-        if proc.returncode != 0:
-            print(proc.stderr[-2000:])
-            return JSONResponse({"error": "inference_paume_video.py a échoué"}, status_code=500)
-        result = _json.loads(Path(out_json).read_text())
+        print(f"[process_video] inférence sur {tmp_path}…")
+        result = await asyncio.get_event_loop().run_in_executor(None, _run_inference, tmp_path)
         print(f"[process_video] HR = {result['hr_bpm']} bpm")
         return JSONResponse(result)
     except Exception:
@@ -233,7 +242,6 @@ async def process_video(file: UploadFile = File(...)):
         return JSONResponse({"error": "Échec traitement vidéo"}, status_code=500)
     finally:
         Path(tmp_path).unlink(missing_ok=True)
-        Path(out_json).unlink(missing_ok=True)
 
 
 @app.websocket("/ws")

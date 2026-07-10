@@ -39,13 +39,6 @@ import pandas as pd
 
 mp_hands = mp.solutions.hands
 
-hands_detector = mp_hands.Hands(
-    static_image_mode=False,
-    max_num_hands=1,
-    min_detection_confidence=0.5,
-    min_tracking_confidence=0.5,
-)
-
 # Landmarks MediaPipe Hands :
 #   0=poignet, 1-4=pouce, 5-8=index, 9-12=majeur, 13-16=annulaire, 17-20=auriculaire
 PALM_ROIS = {
@@ -162,6 +155,13 @@ def _rotate_frame(frame, angle):
 
 def extract_rgb_paume_multi(video_path: str):
     t_start = time.perf_counter()
+
+    hands_detector = mp_hands.Hands(
+        static_image_mode=False,
+        max_num_hands=1,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5,
+    )
 
     cap = cv2.VideoCapture(video_path)
     fps = cap.get(cv2.CAP_PROP_FPS)
