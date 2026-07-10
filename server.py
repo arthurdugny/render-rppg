@@ -17,8 +17,9 @@ import mediapipe as mp
 import numpy as np
 import torch
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 import uvicorn
 
 # ── Device ───────────────────────────────────────────────────────────
@@ -217,6 +218,15 @@ class Session:
 # ── FastAPI ───────────────────────────────────────────────────────────
 
 app = FastAPI()
+
+class COOPCOEPMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Embedder-Policy"] = "credentialless"
+        return response
+
+app.add_middleware(COOPCOEPMiddleware)
 cnn1d_model: Optional[object] = None
 active_session: Optional[Session] = None
 
