@@ -857,8 +857,12 @@ function connectWS(){
       statusEl.textContent=`Acquisition — ${msg.done} frames (queue: ${msg.queued})`;
       pushPalmGreen(msg.palm_g);
     } else if(msg.status==='done'){
-      showAlert(`Capture terminée — ${msg.frames} frames · Analyse CNN1D en cours…`,'ok');
-      // L'analyse CNN1D est lancée après finalizeRecording() quand le blob est prêt
+      if(msg.cnn1d){
+        if(msg.cnn1d.error){ showAlert('CNN1D : '+msg.cnn1d.error,'warn'); }
+        else { showCnn1dResults(msg.cnn1d); statusEl.textContent=`CNN1D terminé — HR = ${msg.cnn1d.hr_bpm} bpm`; }
+      } else {
+        showAlert(`Capture terminée — ${msg.frames} frames`,'ok');
+      }
     }
   };
 }
@@ -999,19 +1003,7 @@ function finalizeRecording(){
 
   showAlert(`Capture terminée · ${S.frameCount} frames · ${fps.toFixed(2)} fps`,'ok');
 
-  // Envoyer la vidéo enregistrée au serveur pour traitement exact (identique à inference_paume_video.py)
-  statusEl.textContent = 'Analyse CNN1D sur la vidéo enregistrée…';
-  const form = new FormData();
-  form.append('file', S.videoBlob, `facepalm.${ext}`);
-  fetch(_isLocal ? `http://${location.hostname}:8000/process_video` : `/process_video`, { method:'POST', body:form })
-    .then(r => { console.log('[process_video] status', r.status); return r.json(); })
-    .then(data => {
-      console.log('[process_video] data', data);
-      if (data.error) { showAlert('CNN1D : ' + data.error, 'warn'); return; }
-      showCnn1dResults(data);
-      statusEl.textContent = `CNN1D terminé — HR = ${data.hr_bpm} bpm`;
-    })
-    .catch(e => { console.error('[process_video] erreur', e); showAlert('CNN1D : ' + e.message, 'warn'); });
+  statusEl.textContent = 'Analyse CNN1D en cours…';
 }
 
 // ── Affichage résultats ───────────────────────────────────────────

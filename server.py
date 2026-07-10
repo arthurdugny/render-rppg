@@ -8,7 +8,7 @@ Endpoints :
   POST /process_video  inférence CNN1D paume sur vidéo enregistrée
 """
 
-import asyncio, json, queue, sys, tempfile, threading, time
+import asyncio, json, queue, sys, threading, time
 from pathlib import Path
 from typing import Optional
 
@@ -17,7 +17,7 @@ import mediapipe as mp
 import numpy as np
 import torch
 
-from fastapi import FastAPI, File, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 import uvicorn
 
@@ -35,8 +35,8 @@ HTML_PATH = HERE / "rppg_live.html"
 
 # ── Imports pipeline ─────────────────────────────────────────────────
 sys.path.insert(0, str(HERE))
-from metrics import extract_all_metrics                                    # type: ignore
-from inference_paume_video import run_cnn1d_full, suppress_outlier_peaks   # type: ignore
+from metrics import extract_all_metrics                                  # type: ignore
+from inference_paume_video import run_cnn1d_full, suppress_outlier_peaks # type: ignore
 from extract_rgb_paume_multi import extract_rgb_paume_multi                # type: ignore
 
 # ── MediaPipe Hands ──────────────────────────────────────────────────
@@ -183,7 +183,35 @@ class Session:
         if self._t0 and self._t1 and self.frame_count > 1:
             self.fps = (self.frame_count - 1) / (self._t1 - self._t0)
 
+        self.cnn1d_result = self._run_cnn1d()
         self.done.set()
+
+    def _run_cnn1d(self):
+        arr = np.array(self.palm_rows, dtype=np.float32)
+        if arr.shape[0] < 30 or self.cnn1d is None:
+            return {"error": "Pas assez de frames paume"}
+        try:
+            rppg = suppress_outlier_peaks(run_cnn1d_full(arr, self.cnn1d, self.fps, _device))
+            m = extract_all_metrics(rppg, self.fps)
+            N = len(rppg)
+            freqs = np.fft.rfftfreq(N, d=1.0 / self.fps)
+            spec  = np.abs(np.fft.rfft(rppg))
+            mask  = (freqs >= 0.7) & (freqs <= 3.0)
+            freqs_m, spec_m = freqs[mask], spec[mask]
+            step = max(1, N // 600)
+            hr = round(float(m.get("hr_bpm", float("nan"))), 1)
+            print(f"[CNN1D] HR = {hr} bpm ({N} frames, {self.fps:.2f} fps)")
+            return {
+                "rppg_signal": rppg[::step].tolist(),
+                "freqs_bpm":   (freqs_m * 60).tolist(),
+                "spectrum":    (spec_m / (spec_m.max() + 1e-9)).tolist(),
+                "hr_bpm":      hr,
+                "n_frames":    N,
+                "fps":         round(self.fps, 3),
+            }
+        except Exception:
+            import traceback; traceback.print_exc()
+            return {"error": "Échec CNN1D"}
 
 
 # ── FastAPI ───────────────────────────────────────────────────────────
@@ -204,45 +232,6 @@ def index():
     return FileResponse(str(HTML_PATH)) if HTML_PATH.exists() else HTMLResponse("<h1>rppg_live.html introuvable</h1>")
 
 
-def _run_inference(video_path: str) -> dict:
-    """Inférence paume en-process (pas de subprocess) pour économiser la RAM."""
-    df, fps = extract_rgb_paume_multi(video_path)
-    arr = df.drop(columns=["frame"]).values.astype("float32")
-    rppg = suppress_outlier_peaks(run_cnn1d_full(arr, cnn1d_model, fps, _device))
-    m = extract_all_metrics(rppg, fps)
-    N = len(rppg)
-    freqs = np.fft.rfftfreq(N, d=1.0 / fps)
-    spec  = np.abs(np.fft.rfft(rppg))
-    mask  = (freqs >= 0.7) & (freqs <= 3.0)
-    freqs_m, spec_m = freqs[mask], spec[mask]
-    step = max(1, N // 600)
-    return {
-        "rppg_signal": rppg[::step].tolist(),
-        "freqs_bpm":   (freqs_m * 60).tolist(),
-        "spectrum":    (spec_m / (spec_m.max() + 1e-9)).tolist(),
-        "hr_bpm":      round(float(m.get("hr_bpm", float("nan"))), 1),
-        "n_frames":    N,
-        "fps":         round(fps, 3),
-    }
-
-
-@app.post("/process_video")
-async def process_video(file: UploadFile = File(...)):
-    suffix = Path(file.filename).suffix if file.filename else ".mp4"
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        tmp.write(await file.read())
-        tmp_path = tmp.name
-    try:
-        print(f"[process_video] inférence sur {tmp_path}…")
-        result = await asyncio.get_event_loop().run_in_executor(None, _run_inference, tmp_path)
-        print(f"[process_video] HR = {result['hr_bpm']} bpm")
-        return JSONResponse(result)
-    except Exception:
-        import traceback; traceback.print_exc()
-        return JSONResponse({"error": "Échec traitement vidéo"}, status_code=500)
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
-
 
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
@@ -262,10 +251,10 @@ async def ws_endpoint(ws: WebSocket):
                 elif data.get("type") == "END":
                     session.end()
                     await loop.run_in_executor(None, session.done.wait, 600)
-                    await ws.send_text(json.dumps({
-                        "status":  "done",
-                        "frames":  session.frame_count,
-                    }))
+                    resp = {"status": "done", "frames": session.frame_count}
+                    if session.cnn1d_result:
+                        resp["cnn1d"] = session.cnn1d_result
+                    await ws.send_text(json.dumps(resp))
             elif "bytes" in msg:
                 session.push_frame(msg["bytes"])
                 await ws.send_text(json.dumps({

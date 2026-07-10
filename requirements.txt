@@ -17,7 +17,6 @@ numpy==1.26.4
 Pillow==10.2.0
 pandas==2.2.1
 mediapipe==0.10.14
-python-multipart>=0.0.9
 
 # ── AnalyseRPPG.py — CHROM / POS / FFT sur CSV déjà extrait ──
 # Pas de BiSeNet ici : uniquement du traitement de signal.
