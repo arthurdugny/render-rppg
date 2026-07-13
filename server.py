@@ -38,7 +38,6 @@ HTML_PATH = HERE / "rppg_live.html"
 sys.path.insert(0, str(HERE))
 from metrics import extract_all_metrics                                  # type: ignore
 from inference_paume_video import run_cnn1d_full, suppress_outlier_peaks # type: ignore
-from extract_rgb_paume_multi import extract_rgb_paume_multi                # type: ignore
 
 # ── MediaPipe Hands ──────────────────────────────────────────────────
 _hands = mp.solutions.hands.Hands(
@@ -179,7 +178,8 @@ class Session:
 
             self.frame_count += 1
             if self.frame_count % 30 == 0:
-                print(f"[Session] {self.frame_count} frames")
+                detected = sum(1 for r in self.palm_rows if not all(np.isnan(v) for v in r))
+                print(f"[Session] {self.frame_count} frames — paume détectée : {detected}/{len(self.palm_rows)}")
 
         if self._t0 and self._t1 and self.frame_count > 1:
             self.fps = (self.frame_count - 1) / (self._t1 - self._t0)

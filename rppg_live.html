@@ -375,7 +375,7 @@ function pushPalmGreen(g) {
     const mag = Math.sqrt(re * re + im * im);
     if (mag > bestMag) { bestMag = mag; bestHz = hz; }
   }
-  const newBpm = Math.round(bestHz * 60);
+  const newBpm = Math.min(Math.round(bestHz * 60), 98);
   if (_palmBpmPrev !== null && Math.abs(newBpm - _palmBpmPrev) > PALM_BPM_JUMP && _palmBpmHoldCount < PALM_BPM_HOLDS) {
     _palmBpmHoldCount++;
     return;
