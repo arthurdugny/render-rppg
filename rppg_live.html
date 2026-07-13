@@ -8,9 +8,9 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg:#F0F4F8; --surface:#FFFFFF; --surface2:#E4ECF4;
-  --cyan:#1A6EC7; --cyan-dim:rgba(26,110,199,.10);
-  --red:#E53E3E; --green:#00A85A; --text:#1A2332; --muted:#6B7B8D; --border:#C8D8E8;
+  --bg:#FFFFFF; --surface:#F0F4FF; --surface2:#E0E8FF;
+  --cyan:#0B3D91; --cyan-dim:rgba(11,61,145,.10);
+  --red:#CC2222; --green:#007744; --text:#0B1D3A; --muted:#5566AA; --border:#B0C0DD;
   --mono:'JetBrains Mono',monospace; --ui:'Inter',sans-serif;
 }
 body { background:var(--bg); color:var(--text); font-family:var(--ui);
@@ -23,7 +23,7 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
 .main { width:100%; max-width:980px; padding:2rem 1.5rem 0; display:flex; flex-direction:column; gap:1.5rem; }
 
 .video-wrap { position:relative; width:100%; aspect-ratio:16/9;
-  background:#050810; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  background:#000; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
 #canvas { display:block; width:100%; height:100%; }
 #video  { display:none; }
 
@@ -35,23 +35,23 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
 
 
 .vid-status { position:absolute; top:16px; left:50%; transform:translateX(-50%);
-  font-family:var(--mono); font-size:.65rem; letter-spacing:.1em; color:#fff;
-  background:rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.25);
+  font-family:var(--mono); font-size:.65rem; letter-spacing:.1em; color:var(--cyan);
+  background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.3);
   border-radius:4px; padding:3px 10px; z-index:4; text-transform:uppercase; white-space:nowrap; }
 .vid-timer { position:absolute; bottom:16px; right:16px; font-family:var(--mono);
   font-size:1.4rem; font-weight:600; color:var(--cyan); z-index:4; display:none; }
 .placeholder { position:absolute; inset:0; display:flex; flex-direction:column;
-  align-items:center; justify-content:center; gap:.75rem; z-index:5; background:#1A2332; }
+  align-items:center; justify-content:center; gap:.75rem; z-index:5; background:#000000; }
 .placeholder svg { opacity:.18; }
 .placeholder p { font-family:var(--mono); font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
 
 /* BPM live visage — affiché en haut à gauche du canvas */
 .live-bpm { position:absolute; top:16px; left:16px; z-index:4;
-  background:rgba(0,0,0,.50); border:1px solid rgba(255,255,255,.2); border-radius:6px;
+  background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.2); border-radius:6px;
   padding:6px 12px; display:none; }
 .live-bpm .lbl { font-family:var(--mono); font-size:.55rem; letter-spacing:.1em;
   text-transform:uppercase; color:var(--muted); }
-.live-bpm .val { font-family:var(--mono); font-size:1.6rem; font-weight:600; color:#00E87A;
+.live-bpm .val { font-family:var(--mono); font-size:1.6rem; font-weight:600; color:var(--green);
   line-height:1; letter-spacing:-.02em; }
 .live-bpm .unit { font-family:var(--mono); font-size:.6rem; color:var(--muted); margin-left:3px; }
 
@@ -94,8 +94,8 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
 .results-section h2 { font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
 
 .consensus-block { display:flex; flex-direction:column; align-items:center; gap:.4rem;
-  padding:1.5rem 1rem; border:1px solid var(--border); border-radius:8px;
-  background:var(--surface2); }
+  padding:1.5rem 1rem; border:1px solid rgba(255,255,255,.15); border-radius:8px;
+  background:rgba(255,255,255,.04); }
 .consensus-label { font-family:var(--mono); font-size:.65rem; letter-spacing:.15em;
   text-transform:uppercase; color:var(--muted); }
 .consensus-value { font-family:var(--mono); font-size:3.5rem; font-weight:600;
@@ -120,7 +120,7 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
 /* ── Résultats CNN1D paume ── */
 .cnn-section { background:var(--surface); border:1px solid rgba(0,255,140,.2);
   border-radius:8px; padding:1.5rem 1.25rem; display:none; flex-direction:column; gap:1.5rem; }
-.cnn-section h2 { font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--cyan); }
+.cnn-section h2 { font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; color:var(--green); }
 
 .cnn-hr-block { display:flex; flex-direction:column; align-items:center; gap:.4rem;
   padding:1.5rem 1rem; border:1px solid rgba(0,255,140,.2); border-radius:8px;
@@ -128,7 +128,7 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
 .cnn-hr-label { font-family:var(--mono); font-size:.65rem; letter-spacing:.15em;
   text-transform:uppercase; color:var(--muted); }
 .cnn-hr-value { font-family:var(--mono); font-size:3.5rem; font-weight:600;
-  color:var(--cyan); line-height:1; letter-spacing:-.02em; }
+  color:var(--green); line-height:1; letter-spacing:-.02em; }
 .cnn-hr-unit  { font-family:var(--mono); font-size:.8rem; color:var(--muted); }
 .cnn-hr-sub   { font-family:var(--mono); font-size:.6rem; color:var(--muted); margin-top:.2rem; }
 
@@ -168,12 +168,8 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
     <div class="vid-status" id="vid-status">En attente</div>
     <div class="vid-timer"  id="vid-timer">00:00</div>
     <div class="live-bpm"   id="live-bpm">
-      <div class="lbl">Estimation BPM live</div>
+      <div class="lbl">BPM live</div>
       <span class="val" id="live-bpm-val">—</span><span class="unit">bpm</span>
-    </div>
-    <div class="live-bpm" id="live-bpm-palm" style="top:80px;">
-      <div class="lbl">BPM paume (live)</div>
-      <span class="val" id="live-bpm-palm-val" style="font-size:1.6rem;">—</span><span class="unit">bpm</span>
     </div>
     <div class="placeholder" id="placeholder">
       <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
@@ -181,7 +177,7 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
         <circle cx="32" cy="34" r="10" stroke="#FFFFFF" stroke-width="2"/>
         <circle cx="32" cy="34" r="4" fill="#FFFFFF"/>
       </svg>
-      <p>Montrez votre visage et votre paume dans le cadre</p>
+      <p>Positionnez votre visage (gauche) et paume (droite)</p>
     </div>
   </div>
 
@@ -213,6 +209,7 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
       </div>
       <div class="field"><label>FPS minimum</label>
         <select id="fps-select">
+          <option value="24">24 fps</option>
           <option value="30" selected>30 fps</option>
           <option value="60">60 fps</option>
         </select>
@@ -229,9 +226,9 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
 
   <!-- Résultats CNN1D paume -->
   <div class="cnn-section" id="cnn-section">
-    <h2>CNN1D — Paume (S5)</h2>
+    <h2>CNN1D S5</h2>
     <div class="cnn-hr-block">
-      <span class="cnn-hr-label">Fréquence cardiaque (CNN1D)</span>
+      <span class="cnn-hr-label">Fréquence cardiaque</span>
       <span class="cnn-hr-value" id="cnn-hr">—</span>
       <span class="cnn-hr-unit">BPM</span>
       <span class="cnn-hr-sub" id="cnn-sub"></span>
@@ -239,7 +236,7 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
     <div class="charts-row">
       <div class="chart-wrap">
         <canvas id="rppg-chart" class="chart-canvas" height="140"></canvas>
-        <p class="chart-label">Signal rPPG reconstruit (paume)</p>
+        <p class="chart-label">Signal rPPG reconstruit</p>
       </div>
       <div class="chart-wrap">
         <canvas id="spec-chart" class="chart-canvas" height="140"></canvas>
@@ -248,7 +245,7 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
     </div>
   </div>
 
-<div class="export-section" id="export-section">
+  <div class="export-section" id="export-section">
     <h2>Données exportées</h2>
     <div class="log-entry"><span class="log-key">fps_mesuré</span><span class="log-val hi" id="log-fps">—</span></div>
     <div class="log-entry"><span class="log-key">durée_s</span><span class="log-val" id="log-dur">—</span></div>
@@ -257,8 +254,24 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
   </div>
 </div>
 
-<!-- MediaPipe Holistic — face + hands dans un seul module WASM (évite le conflit) -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1675471629/holistic.js"></script>
+<!-- MediaPipe Tasks Vision (remplace les anciennes solutions cassées sur Chrome 120+) -->
+<script type="module">
+import { FaceLandmarker, HandLandmarker, FilesetResolver }
+  from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm';
+window._mpFaceLandmarker  = FaceLandmarker;
+window._mpHandLandmarker  = HandLandmarker;
+window._mpFilesetResolver = FilesetResolver;
+// Constantes de dessin — converties en [a,b] pour compatibilité avec le code existant
+const toAB = arr => arr.map(({start,end})=>[start,end]);
+window.FACEMESH_TESSELATION   = toAB(FaceLandmarker.FACE_LANDMARKS_TESSELATION);
+window.FACEMESH_FACE_OVAL     = toAB(FaceLandmarker.FACE_LANDMARKS_FACE_OVAL);
+window.FACEMESH_LEFT_EYE      = toAB(FaceLandmarker.FACE_LANDMARKS_LEFT_EYE);
+window.FACEMESH_RIGHT_EYE     = toAB(FaceLandmarker.FACE_LANDMARKS_RIGHT_EYE);
+window.FACEMESH_LEFT_EYEBROW  = toAB(FaceLandmarker.FACE_LANDMARKS_LEFT_EYEBROW);
+window.FACEMESH_RIGHT_EYEBROW = toAB(FaceLandmarker.FACE_LANDMARKS_RIGHT_EYEBROW);
+window.FACEMESH_LIPS          = toAB(FaceLandmarker.FACE_LANDMARKS_LIPS);
+window.dispatchEvent(new Event('mp-classes-ready'));
+</script>
 <script>
 // ── État global ───────────────────────────────────────────────────
 const video    = document.getElementById('video');
@@ -279,7 +292,7 @@ const liveBpmEl= document.getElementById('live-bpm');
 const liveBpmVal=document.getElementById('live-bpm-val');
 
 const S = {
-  stream:null, recorder:null, chunks:[], recording:false, analysing:false,
+  stream:null, recorder:null, chunks:[], recording:false,
   startTs:null, timerInt:null, fpsInt:null,
   frameCount:0, fpsFrameCount:0, fpsLastTs:null, measuredFps:null,
   targetDur:30, videoBlob:null, mimeType:'video/mp4',
@@ -327,79 +340,27 @@ const HAND_CONNECTIONS = [
   [5,9],[9,13],[13,17],
 ];
 
-// ── BPM live (visage, canal vert) ────────────────────────────────
+// ── BPM live (paume, canal vert) ─────────────────────────────────
 let _bpmEst = 72;
 let _bpmLastUpdate = 0;
+let _liveFrozen = false;
 const _greenBuf = [];
-
-// ── BPM live (paume, canal vert via serveur) ──────────────────────
-const _palmGreenBuf = [];   // {t, v}
-let _palmBpmLastUpdate = 0;
-let _palmBpmFrozen = false;
-let _palmBpmPrev = null;
-let _palmBpmHoldCount = 0;
-const PALM_BPM_JUMP  = 25;  // saut max accepté (bpm) avant rejet
-const PALM_BPM_HOLDS = 3;   // nb de frames rejetées avant acceptation forcée
-const liveBpmPalmVal = document.getElementById('live-bpm-palm-val');
-const PALM_WARMUP_S  = 5;   // secondes avant première estimation
-const PALM_WIN_S     = 8;   // fenêtre FFT
-
-function pushPalmGreen(g) {
-  if (_palmBpmFrozen || g == null) return;
-  const now = performance.now() / 1000;
-  _palmGreenBuf.push({ t: now, v: g });
-  while (_palmGreenBuf.length > 0 && now - _palmGreenBuf[0].t > PALM_WIN_S)
-    _palmGreenBuf.shift();
-
-  const elapsed = now - _palmGreenBuf[0].t;
-  if (elapsed < PALM_WARMUP_S) {
-    liveBpmPalmVal.style.fontSize = '0.9rem';
-    liveBpmPalmVal.style.color    = 'var(--muted)';
-    liveBpmPalmVal.textContent    = 'Collecte…';
-    return;
-  }
-  if (now - _palmBpmLastUpdate < 2) return;
-  _palmBpmLastUpdate = now;
-
-  const sig = _palmGreenBuf.map(e => e.v);
-  const N   = sig.length;
-  const fps = S.measuredFps || 30;
-  const mn  = sig.reduce((a, v) => a + v, 0) / N;
-  const c   = sig.map(v => v - mn);
-  let bestMag = 0, bestHz = 1.2;
-  for (let k = 1; k < N / 2; k++) {
-    const hz = k * fps / N;
-    if (hz < 0.7 || hz > 3.0) continue;
-    let re = 0, im = 0;
-    for (let n = 0; n < N; n++) { re += c[n] * Math.cos(2 * Math.PI * k * n / N); im += c[n] * Math.sin(2 * Math.PI * k * n / N); }
-    const mag = Math.sqrt(re * re + im * im);
-    if (mag > bestMag) { bestMag = mag; bestHz = hz; }
-  }
-  const newBpm = Math.min(Math.round(bestHz * 60), 98);
-  if (_palmBpmPrev !== null && Math.abs(newBpm - _palmBpmPrev) > PALM_BPM_JUMP && _palmBpmHoldCount < PALM_BPM_HOLDS) {
-    _palmBpmHoldCount++;
-    return;
-  }
-  _palmBpmHoldCount = 0;
-  _palmBpmPrev = _palmBpmPrev === null ? newBpm : Math.round(_palmBpmPrev * 0.6 + newBpm * 0.4);
-  liveBpmPalmVal.style.fontSize = '1.6rem';
-  liveBpmPalmVal.style.color    = 'var(--green)';
-  liveBpmPalmVal.textContent    = _palmBpmPrev.toString();
-}
+const _PALM_IDX = [0,5,9,13,17];
 
 function updateBpmEstimate() {
-  if (!S.landmarks || video.readyState < 2) return;
+  if (_liveFrozen || !S.handLandmarks || video.readyState < 2) return;
   const now = performance.now() / 1000;
-  const roi = ROIS[0];
   let sx=0, sy=0;
-  roi.idx.forEach(i => { sx += S.landmarks[i].x; sy += S.landmarks[i].y; });
-  sx /= roi.idx.length; sy /= roi.idx.length;
+  _PALM_IDX.forEach(i => { sx += S.handLandmarks[i].x; sy += S.handLandmarks[i].y; });
+  sx /= _PALM_IDX.length; sy /= _PALM_IDX.length;
   const vw = video.videoWidth||640, vh = video.videoHeight||480;
-  const oc = document.createElement('canvas'); oc.width=5; oc.height=5;
+  // Hand landmarks use raw video coords (not mirrored)
+  const px = sx*vw, py = sy*vh;
+  const oc = document.createElement('canvas'); oc.width=10; oc.height=10;
   const oc2 = oc.getContext('2d');
-  oc2.drawImage(video, sx*vw-2, sy*vh-2, 5, 5, 0, 0, 5, 5);
-  const d = oc2.getImageData(0,0,5,5).data;
-  let g = 0; for(let i=1;i<d.length;i+=4) g+=d[i]; g/=25;
+  oc2.drawImage(video, px-5, py-5, 10, 10, 0, 0, 10, 10);
+  const d = oc2.getImageData(0,0,10,10).data;
+  let g = 0; for(let i=1;i<d.length;i+=4) g+=d[i]; g/=100;
   _greenBuf.push({t:now, v:g});
   while(_greenBuf.length > 0 && now-_greenBuf[0].t > 10) _greenBuf.shift();
   if(now - _bpmLastUpdate < 2 || _greenBuf.length < 60) return;
@@ -408,16 +369,16 @@ function updateBpmEstimate() {
   const sig = _greenBuf.map(e=>e.v);
   const N = sig.length, mn = sig.reduce((a,v)=>a+v,0)/N;
   const c = sig.map(v=>v-mn);
-  let bestMag=0, bestHz=1.2;
+  let bestMag=0, bestHz=42/60;
   for(let k=1;k<N/2;k++){
-    const hz=k*fps/N; if(hz<0.7||hz>3.0) continue;
+    const hz=k*fps/N; if(hz<42/60||hz>96/60) continue;
     let re=0,im=0;
     for(let n=0;n<N;n++){re+=c[n]*Math.cos(2*Math.PI*k*n/N);im+=c[n]*Math.sin(2*Math.PI*k*n/N);}
     const mag=Math.sqrt(re*re+im*im);
     if(mag>bestMag){bestMag=mag;bestHz=hz;}
   }
   _bpmEst = Math.round(bestHz*60);
-  liveBpmVal.textContent = (_bpmEst + 11).toString();
+  liveBpmVal.textContent = _bpmEst.toString();
 }
 
 // ── Helpers canvas ────────────────────────────────────────────────
@@ -498,87 +459,60 @@ const ROI_BLOBS = [
 function tickAnimPhase() {
   const now=performance.now(), dt=(now-_animLastT)/1000;
   _animLastT=now;
-  _animPhase += dt*Math.min(_bpmEst||72, 90)/60*2*Math.PI;
+  _animPhase += dt*80/60*2*Math.PI;
 }
 
 // ── Dessin FaceMesh ───────────────────────────────────────────────
-// boostFn(x,y) → [0..1] boost scan sur lignes/points ; null = pas de scan actif
-function drawMesh(W, H, introT, boostFn) {
+function drawMesh(W, H, introT) {
   const lms = S.landmarks;
-  const segAlpha = (ax,ay,bx,by,base) => {
-    const b = boostFn ? boostFn((ax+bx)/2,(ay+by)/2) : 0;
-    return base + b*(1-base);
-  };
-  const dotAlpha = (x,y,base) => {
-    const b = boostFn ? boostFn(x,y) : 0;
-    return base + b*(1-base);
-  };
-
   if(introT != null) {
     const waveFn = _introWaveFn(introT, lms, W, H);
+    const drawSeg = (a,b,baseAlpha) => {
+      const ax=lx(lms[a]),ay=ly(lms[a]),bx=lx(lms[b]),by=ly(lms[b]);
+      ctx.globalAlpha = waveFn((ax+bx)/2,(ay+by)/2)*baseAlpha;
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    };
     ctx.strokeStyle='#FFFFFF';
-    if(window.FACEMESH_TESSELATION){
-      ctx.lineWidth=0.5;
-      for(const [a,b] of FACEMESH_TESSELATION){
-        const ax=lx(lms[a]),ay=ly(lms[a]),bx=lx(lms[b]),by=ly(lms[b]);
-        ctx.globalAlpha=waveFn((ax+bx)/2,(ay+by)/2)*0.18;
-        ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
-      }
-    }
+    if(window.FACEMESH_TESSELATION){ ctx.lineWidth=0.5; for(const [a,b] of FACEMESH_TESSELATION) drawSeg(a,b,0.18); }
     lms.forEach((lm,i)=>{
-      const x=lx(lm),y=ly(lm);
-      ctx.globalAlpha=waveFn(x,y)*0.35;
-      ctx.fillStyle=i%3===0?'rgba(255,160,0,1)':'rgba(255,255,255,1)';
-      ctx.beginPath();ctx.arc(x,y,1.2,0,Math.PI*2);ctx.fill();
+      const x=lx(lm), y=ly(lm);
+      ctx.globalAlpha = waveFn(x,y)*0.35;
+      ctx.fillStyle = i%3===0?'rgba(255,160,0,1)':'rgba(255,255,255,1)';
+      ctx.beginPath(); ctx.arc(x,y,1.2,0,Math.PI*2); ctx.fill();
     });
     if(window.FACEMESH_FACE_OVAL){
-      ctx.globalAlpha=0.85;ctx.lineWidth=1;
+      ctx.globalAlpha=0.85; ctx.lineWidth=1;
       for(const [a,b] of FACEMESH_FACE_OVAL){ctx.beginPath();ctx.moveTo(lx(lms[a]),ly(lms[a]));ctx.lineTo(lx(lms[b]),ly(lms[b]));ctx.stroke();}
     }
-    ctx.globalAlpha=0.75;ctx.lineWidth=1;
+    ctx.globalAlpha=0.75; ctx.lineWidth=1;
     for(const set of [window.FACEMESH_LEFT_EYE,window.FACEMESH_RIGHT_EYE,window.FACEMESH_LEFT_EYEBROW,window.FACEMESH_RIGHT_EYEBROW,window.FACEMESH_LIPS].filter(Boolean)){
       for(const [a,b] of set){ctx.beginPath();ctx.moveTo(lx(lms[a]),ly(lms[a]));ctx.lineTo(lx(lms[b]),ly(lms[b]));ctx.stroke();}
     }
     ctx.globalAlpha=1; return;
   }
-
-  const base = meshPulse(0.04,1)*_meshFadeAlpha;
-  ctx.strokeStyle='#FFFFFF';
+  const alpha = meshPulse(0.04,1)*_meshFadeAlpha;
   if(window.FACEMESH_TESSELATION){
-    ctx.lineWidth=.5;
-    for(const [a,b] of FACEMESH_TESSELATION){
-      const ax=lx(lms[a]),ay=ly(lms[a]),bx=lx(lms[b]),by=ly(lms[b]);
-      ctx.globalAlpha=segAlpha(ax,ay,bx,by,base*0.18);
-      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
-    }
+    ctx.globalAlpha=alpha*0.18; ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=.5;
+    for(const [a,b] of FACEMESH_TESSELATION){ctx.beginPath();ctx.moveTo(lx(lms[a]),ly(lms[a]));ctx.lineTo(lx(lms[b]),ly(lms[b]));ctx.stroke();}
   }
   if(window.FACEMESH_FACE_OVAL){
-    ctx.lineWidth=1;
-    for(const [a,b] of FACEMESH_FACE_OVAL){
-      const ax=lx(lms[a]),ay=ly(lms[a]),bx=lx(lms[b]),by=ly(lms[b]);
-      ctx.globalAlpha=segAlpha(ax,ay,bx,by,0.85);
-      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
-    }
+    ctx.globalAlpha=0.85; ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=1;
+    for(const [a,b] of FACEMESH_FACE_OVAL){ctx.beginPath();ctx.moveTo(lx(lms[a]),ly(lms[a]));ctx.lineTo(lx(lms[b]),ly(lms[b]));ctx.stroke();}
   }
-  ctx.lineWidth=1;
+  ctx.globalAlpha=0.75; ctx.strokeStyle='#FFFFFF'; ctx.lineWidth=1;
   for(const set of [window.FACEMESH_LEFT_EYE,window.FACEMESH_RIGHT_EYE,window.FACEMESH_LEFT_EYEBROW,window.FACEMESH_RIGHT_EYEBROW,window.FACEMESH_LIPS].filter(Boolean)){
-    for(const [a,b] of set){
-      const ax=lx(lms[a]),ay=ly(lms[a]),bx=lx(lms[b]),by=ly(lms[b]);
-      ctx.globalAlpha=segAlpha(ax,ay,bx,by,0.75);
-      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
-    }
+    for(const [a,b] of set){ctx.beginPath();ctx.moveTo(lx(lms[a]),ly(lms[a]));ctx.lineTo(lx(lms[b]),ly(lms[b]));ctx.stroke();}
   }
   ctx.globalAlpha=1;
 }
 
-function drawDots(W, H, boostFn) {
-  const base = meshPulse(0.04,1)*_meshFadeAlpha;
+function drawDots(W, H) {
+  const alpha = meshPulse(0.04,1);
   S.landmarks.forEach((lm,i)=>{
-    const x=lx(lm),y=ly(lm);
-    const b = boostFn ? boostFn(x,y) : 0;
-    ctx.globalAlpha = base*0.35 + b*0.65;
+    ctx.beginPath(); ctx.arc(lx(lm),ly(lm),1.2,0,Math.PI*2);
+    ctx.globalAlpha=alpha*0.35;
     ctx.fillStyle=i%3===0?'rgba(255,160,0,1)':'rgba(255,255,255,1)';
-    ctx.beginPath();ctx.arc(x,y,1.2,0,Math.PI*2);ctx.fill();
+    ctx.fill();
   });
   ctx.globalAlpha=1;
 }
@@ -647,7 +581,7 @@ function drawHand(W, H) {
   // ROI overlays — pulsing blobs (comme les ROI visage)
   if(!S.recording || _blobAlpha <= 0) { ctx.globalAlpha=1; return; }
   const dt = (performance.now() - _animLastT) / 1000;
-  _handAnimPhase += dt * (_bpmEst||72)/60 * 2 * Math.PI;
+  _handAnimPhase += dt * 80/60 * 2 * Math.PI;
 
   for(let ri=0; ri<PALM_ROIS.length; ri++){
     const proi = PALM_ROIS[ri];
@@ -688,21 +622,37 @@ function drawHand(W, H) {
   ctx.globalAlpha=1;
 }
 
-// Retourne une fonction (x,y) → boost [0..1] selon la position du scan
-function normalScanBoostFn(lms, W, H, elapsed) {
+function drawNormalScan(lms, W, H, elapsed) {
   const {minX,maxX,minY,maxY}=_ovalBounds(lms,W,H);
-  const CYCLE=16, HALF=40, tc=elapsed%CYCLE;
-  let isH, pos;
-  if(tc<3)       { isH=true;  pos=minY+( tc      /3)*(maxY-minY); }
-  else if(tc<6)  { isH=true;  pos=maxY-((tc-3)   /3)*(maxY-minY); }
-  else if(tc<8)  { return null; }
-  else if(tc<11) { isH=false; pos=minX+((tc-8)   /3)*(maxX-minX); }
-  else if(tc<14) { isH=false; pos=maxX-((tc-11)  /3)*(maxX-minX); }
-  else           { return null; }
-  return (x,y) => {
-    const d = isH ? Math.abs(y - pos) : Math.abs(x - pos);
-    return Math.max(0, 1 - d/HALF);
-  };
+  const CYCLE=16; const tc=elapsed%CYCLE;
+  let phase=-1,t=0;
+  if(tc<3){phase=0;t=tc/3;}
+  else if(tc<6){phase=1;t=(tc-3)/3;}
+  else if(tc<8){phase=-1;}
+  else if(tc<11){phase=2;t=(tc-8)/3;}
+  else if(tc<14){phase=3;t=(tc-11)/3;}
+  if(phase===-1) return;
+  ctx.save();
+  // Clip au contour du visage
+  if(window.FACEMESH_FACE_OVAL){
+    ctx.beginPath();
+    FACEMESH_FACE_OVAL.forEach(([a],n)=>{
+      const p=lms[a]; n===0?ctx.moveTo(lx(p),ly(p)):ctx.lineTo(lx(p),ly(p));
+    });
+    ctx.closePath(); ctx.clip();
+  }
+  let x1,y1,isH;
+  if(phase===0){const sy=minY+t*(maxY-minY);x1=minX;y1=sy;isH=true;}
+  else if(phase===1){const sy=maxY-t*(maxY-minY);x1=minX;y1=sy;isH=true;}
+  else if(phase===2){const sx=minX+t*(maxX-minX);x1=sx;y1=minY;isH=false;}
+  else{const sx=maxX-t*(maxX-minX);x1=sx;y1=minY;isH=false;}
+  const HALF=28;
+  const g=isH?ctx.createLinearGradient(0,y1-HALF,0,y1+HALF):ctx.createLinearGradient(x1-HALF,0,x1+HALF,0);
+  g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.5,'rgba(255,255,255,0.18)');g.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=g;
+  if(isH) ctx.fillRect(minX,y1-HALF,maxX-minX,HALF*2);
+  else     ctx.fillRect(x1-HALF,minY,HALF*2,maxY-minY);
+  ctx.restore();
 }
 
 // ── Boucle de rendu ───────────────────────────────────────────────
@@ -719,13 +669,19 @@ function drawFrame() {
     ctx.save(); ctx.translate(W,0); ctx.scale(-1,1);
     ctx.drawImage(video,0,0,W,H); ctx.restore();
   } else {
-    ctx.fillStyle='#050810'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#000000'; ctx.fillRect(0,0,W,H);
   }
 
   // Scanlines
   ctx.fillStyle='rgba(255,255,255,.015)';
   for(let y=0;y<H;y+=4) ctx.fillRect(0,y,W,1);
 
+
+  // Scan normal (après warmup)
+  if(S.recording && S.landmarks && _recStartTs){
+    const recT=(performance.now()-_recStartTs)/1000;
+    if(recT>=7.9) drawNormalScan(S.landmarks,W,H,recT-7.9);
+  }
 
   // FaceMesh overlay
   if(S.landmarks){
@@ -737,131 +693,92 @@ function drawFrame() {
       else            {_roiAlpha=1;_blobAlpha=1;_meshFadeAlpha=1;}
     } else {_roiAlpha=0;_blobAlpha=0;_meshFadeAlpha=1;}
     const _iT=(_rT!==null&&_rT<6.4)?_rT:null;
-    // Scan normal (après warmup) — boost uniquement sur lignes et points du mesh
-    const boostFn=(_rT!==null&&_rT>=7.9)?normalScanBoostFn(S.landmarks,W,H,_rT-7.9):null;
-    drawMesh(W,H,_iT,boostFn);
+    drawMesh(W,H,_iT);
     drawROIs(W,H);
-    if(_iT===null) drawDots(W,H,boostFn);
+    if(_iT===null) drawDots(W,H);
   }
 
   // Hand overlay
   drawHand(W, H);
 }
 
-// ── MediaPipe Holistic (face + hands, un seul module WASM) ───────
-let holistic = null;
-let _smoothedHandLms = null;
-let _handHoldCount = 0;
-const HAND_JUMP_THRESH = 0.12; // saut max autorisé (coord. normalisées) avant rejet
-const HAND_HOLD_MAX   = 4;     // nb de frames consécutives rejetées avant d'accepter quand même
+// ── MediaPipe Tasks Vision ────────────────────────────────────────
+let _faceLandmarker=null, _handLandmarker=null;
 
-function smoothHandLandmarks(raw) {
-  if (!_smoothedHandLms || _smoothedHandLms.length !== raw.length) {
-    _smoothedHandLms = raw.map(lm => ({ x: lm.x, y: lm.y, z: lm.z }));
-    _handHoldCount = 0;
-    return _smoothedHandLms;
+async function initMediaPipe() {
+  // Attend que le module ESM soit chargé
+  if(!window._mpFilesetResolver) {
+    await new Promise(r => window.addEventListener('mp-classes-ready', r, {once:true}));
   }
-  // Distance max sur les landmarks clés (poignet + knuckles)
-  const keys = [0, 5, 9, 13, 17];
-  let maxDist = 0;
-  for (const i of keys) {
-    const dx = raw[i].x - _smoothedHandLms[i].x;
-    const dy = raw[i].y - _smoothedHandLms[i].y;
-    maxDist = Math.max(maxDist, Math.sqrt(dx*dx + dy*dy));
-  }
-  // Rupture trop forte → on maintient la position précédente
-  if (maxDist > HAND_JUMP_THRESH && _handHoldCount < HAND_HOLD_MAX) {
-    _handHoldCount++;
-    return _smoothedHandLms;
-  }
-  // Mouvement cohérent → on accepte avec légère EMA pour adoucir
-  _handHoldCount = 0;
-  const alpha = Math.min(1, 0.3 + maxDist * 4); // suit rapidement si mouvement franc
-  for (let i = 0; i < raw.length; i++) {
-    _smoothedHandLms[i].x += alpha * (raw[i].x - _smoothedHandLms[i].x);
-    _smoothedHandLms[i].y += alpha * (raw[i].y - _smoothedHandLms[i].y);
-    _smoothedHandLms[i].z += alpha * (raw[i].z - _smoothedHandLms[i].z);
-  }
-  return _smoothedHandLms;
-}
+  const FilesetResolver = window._mpFilesetResolver;
+  const FaceLandmarker  = window._mpFaceLandmarker;
+  const HandLandmarker  = window._mpHandLandmarker;
 
-function initMediaPipe() {
-  holistic = new Holistic({
-    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic@0.5.1675471629/${f}`
+  const vision = await FilesetResolver.forVisionTasks(
+    'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
+  );
+  _faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+      delegate: 'GPU'
+    },
+    runningMode: 'VIDEO', numFaces: 1, outputFaceBlendshapes: false
   });
-  holistic.setOptions({
-    modelComplexity: 1,
-    smoothLandmarks: true,
-    enableSegmentation: false,
-    refineFaceLandmarks: false,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5,
-  });
-  holistic.onResults(r => {
-    S.landmarks = r.faceLandmarks || null;
-    const rawHand = r.rightHandLandmarks || r.leftHandLandmarks || null;
-    if (!rawHand) { _smoothedHandLms = null; S.handLandmarks = null; }
-    else S.handLandmarks = smoothHandLandmarks(rawHand);
-    if (S.landmarks) updateBpmEstimate();
-    if (!S.recording && !S.analysing) {
-      if (S.landmarks && S.handLandmarks) statusEl.textContent = 'Visage + paume détectés';
-      else if (S.landmarks) statusEl.textContent = 'Visage détecté — montrez la paume';
-      else statusEl.textContent = 'Caméra active';
-    }
+  _handLandmarker = await HandLandmarker.createFromOptions(vision, {
+    baseOptions: {
+      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+      delegate: 'GPU'
+    },
+    runningMode: 'VIDEO', numHands: 1
   });
 }
 
+let _mpFrameN=0;
 function startMpLoop() {
-  let _frame = 0;
-  async function loop() {
-    if (video.readyState >= 2 && _frame % 2 === 0) {
-      try { await holistic.send({ image: video }); } catch(e) {}
-    }
-    _frame++;
+  function loop() {
     requestAnimationFrame(loop);
+    if(video.readyState < 2) return;
+    const now = performance.now();
+    _mpFrameN++;
+    if(_faceLandmarker) {
+      try {
+        const r = _faceLandmarker.detectForVideo(video, now);
+        S.landmarks = (r.faceLandmarks && r.faceLandmarks[0]) || null;
+      } catch(e) {}
+    }
+    if(_handLandmarker && _mpFrameN % 2 === 0) {
+      try {
+        const r = _handLandmarker.detectForVideo(video, now);
+        S.handLandmarks = (r.landmarks && r.landmarks[0]) || null;
+        if(S.handLandmarks) updateBpmEstimate();
+      } catch(e) {}
+    }
+    if(!S.recording) {
+      const hasPalm = !!S.handLandmarks;
+      btnRecord.disabled = !hasPalm;
+      statusEl.textContent = hasPalm ? 'Paume détectée' : 'Caméra active — montrez la paume';
+    }
   }
   loop();
 }
 
 // ── WebSocket ────────────────────────────────────────────────────
 let ws=null;
-const _isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const WS_URL = _isLocal
-  ? `ws://${location.hostname}:8000/ws`
-  : `wss://${location.host}/ws`;
+const WS_URL = `ws://${location.hostname}:8000/ws`;
 const capCanv=document.createElement('canvas'), capCtx=capCanv.getContext('2d');
-// ── Extraction RGB paume côté JS ─────────────────────────────────
-const PALM_ROI_IDX = [[0,5,9,13,17],[0,1,2,5],[0,13,17],[5,9,13,17]];
-let _palmRows = [];  // collecte locale pendant la capture
+const _jsQueue=[];
+let _jsSending=false;
 
-function _meanNoOutliers(arr){
-  if(!arr.length) return NaN;
-  const m=arr.reduce((a,b)=>a+b,0)/arr.length;
-  const sd=Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length)||1;
-  const f=arr.filter(v=>Math.abs(v-m)<=2*sd);
-  return f.length ? f.reduce((a,b)=>a+b,0)/f.length : m;
-}
-
-function extractPalmRGB(lms, imgData, W, H){
-  const row=[];
-  for(const idx of PALM_ROI_IDX){
-    const pts=idx.map(i=>({x:Math.round(lms[i].x*W), y:Math.round(lms[i].y*H)}));
-    const cx=pts.reduce((s,p)=>s+p.x,0)/pts.length;
-    const cy=pts.reduce((s,p)=>s+p.y,0)/pts.length;
-    const r=pts.reduce((s,p)=>s+Math.sqrt((p.x-cx)**2+(p.y-cy)**2),0)/pts.length*0.9;
-    const r2=r*r, Rs=[], Gs=[], Bs=[];
-    const x0=Math.max(0,Math.floor(cx-r)), x1=Math.min(W-1,Math.ceil(cx+r));
-    const y0=Math.max(0,Math.floor(cy-r)), y1=Math.min(H-1,Math.ceil(cy+r));
-    for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
-      if((x-cx)**2+(y-cy)**2<=r2){
-        const i=(y*W+x)*4;
-        Rs.push(imgData.data[i]); Gs.push(imgData.data[i+1]); Bs.push(imgData.data[i+2]);
-      }
-    }
-    if(Rs.length<10){ row.push(NaN,NaN,NaN); }
-    else { row.push(_meanNoOutliers(Rs),_meanNoOutliers(Gs),_meanNoOutliers(Bs)); }
+async function _drainQueue(){
+  if(_jsSending) return;
+  _jsSending=true;
+  while(_jsQueue.length>0){
+    if(!ws||ws.readyState!==WebSocket.OPEN) break;
+    const blob=_jsQueue.shift();
+    const buf=await blob.arrayBuffer();
+    ws.send(buf);
   }
-  return row;  // 12 valeurs : R,G,B × 4 ROI
+  _jsSending=false;
 }
 
 function connectWS(){
@@ -872,33 +789,26 @@ function connectWS(){
   ws.onerror=e=>console.warn('[WS] Erreur',e);
   ws.onmessage=e=>{
     const msg=JSON.parse(e.data);
-    if(msg.status==='done'){
-      S.analysing=false;
-      if(msg.cnn1d){
-        if(msg.cnn1d.error){ showAlert('CNN1D : '+msg.cnn1d.error,'warn'); btnRecord.disabled=false; }
-        else { showCnn1dResults(msg.cnn1d); statusEl.textContent=`CNN1D terminé — HR = ${msg.cnn1d.hr_bpm} bpm`; }
+    if(msg.status==='processing'){
+      statusEl.textContent=`Acquisition — ${msg.done} frames (queue: ${msg.queued})`;
+    } else if(msg.status==='done'){
+      showAlert(`Capture terminée — ${msg.frames} frames · Analyse CNN1D en cours…`,'ok');
+      // Lancer les deux analyses en parallèle
+      if(msg.cnn1d_ready){
+        fetch(`http://${location.hostname}:8000/analyse_palm`)
+          .then(r=>r.json()).then(showCnn1dResults)
+          .catch(e=>showAlert('CNN1D : '+e.message,'warn'));
       }
     }
   };
 }
 
 function _captureAndSend(){
-  if(!S.recording||video.readyState<2) return;
+  if(!S.recording||!ws||ws.readyState!==WebSocket.OPEN||video.readyState<2) return;
   const vw=video.videoWidth, vh=video.videoHeight;
   if(capCanv.width!==vw||capCanv.height!==vh){capCanv.width=vw;capCanv.height=vh;}
   capCtx.drawImage(video,0,0,vw,vh);
-  if(S.handLandmarks){
-    const imgData=capCtx.getImageData(0,0,vw,vh);
-    const row=extractPalmRGB(S.handLandmarks,imgData,vw,vh);
-    _palmRows.push(row);
-    // BPM live : G moyen des 4 ROI (indices 1,4,7,10)
-    const gs=row.filter((_,i)=>i%3===1).filter(v=>!isNaN(v));
-    if(gs.length) pushPalmGreen(gs.reduce((a,b)=>a+b,0)/gs.length);
-  } else {
-    _palmRows.push(Array(12).fill(NaN));
-  }
-  S.frameCount++;
-  statusEl.textContent=`Acquisition — ${_palmRows.length} frames`;
+  capCanv.toBlob(blob=>{_jsQueue.push(blob);_drainQueue();},'image/jpeg',0.92);
 }
 
 let _frameCapInt=null;
@@ -952,8 +862,8 @@ document.getElementById('btn-start').onclick = async ()=>{
     document.getElementById('btn-start').disabled=true;
     btnRecord.disabled=false;
     startFpsMeasure();
-    initMediaPipe();
-    await holistic.initialize();
+    statusEl.textContent='Chargement MediaPipe…';
+    await initMediaPipe();
     S.mpReady=true; statusEl.textContent='Caméra active';
     startMpLoop(); connectWS();
     liveBpmEl.style.display='block';
@@ -963,9 +873,9 @@ document.getElementById('btn-start').onclick = async ()=>{
 btnRecord.onclick=startRecording;
 function startRecording(){
   if(!S.stream) return;
-  if(!S.handLandmarks){ showAlert('Paume non détectée — montrez votre paume avant de démarrer','warn'); return; }
   S.targetDur=parseInt(document.getElementById('dur-input').value)||30;
   S.chunks=[];S.frameCount=0;
+  _liveFrozen=false; _greenBuf.length=0; _bpmLastUpdate=0;
   const pref=document.getElementById('codec-select').value;
   const mimes=[pref,'video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
   S.mimeType=mimes.find(m=>MediaRecorder.isTypeSupported(m))||'';
@@ -974,12 +884,6 @@ function startRecording(){
   S.recorder.onstop=finalizeRecording;
   S.recorder.start(100);
   S.recording=true; _recStartTs=performance.now();
-  // Réinitialiser BPM paume
-  _palmGreenBuf.length=0; _palmBpmLastUpdate=0; _palmBpmFrozen=false;
-  _palmBpmPrev=null; _palmBpmHoldCount=0;
-  _palmRows=[];
-  liveBpmPalmVal.style.fontSize='0.9rem'; liveBpmPalmVal.style.color='var(--muted)';
-  liveBpmPalmVal.textContent='Collecte…';
   const capFps=S.stream.getVideoTracks()[0].getSettings().frameRate||S.measuredFps||30;
   if(ws&&ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'START',fps:capFps}));
   startFrameCapture(capFps);
@@ -992,21 +896,14 @@ function startRecording(){
 
 function stopRecording(){
   if(!S.recording) return;
-  S.recording=false; S.analysing=true; clearInterval(S.timerInt);
+  S.recording=false; clearInterval(S.timerInt);
+  _liveFrozen = true;
   stopFrameCapture(); S.recorder.stop();
-  // Figer les BPM live affichés
-  _bpmLastUpdate = Infinity;
-  _palmBpmFrozen = true;
-  const capFps=S.measuredFps||parseFloat(document.getElementById('fps-select').value)||30;
   if(ws&&ws.readyState===WebSocket.OPEN){
-    ws.send(JSON.stringify({type:'END', palm_rows:_palmRows, fps:capFps}));
-    statusEl.textContent='Analyse CNN1D en cours…';
-    setTimeout(()=>{ if(S.analysing){ S.analysing=false; showAlert('Délai dépassé — résultats indisponibles','warn'); btnRecord.disabled=false; } }, 120000);
-  } else {
-    S.analysing=false;
-    showAlert('Serveur non connecté — résultats indisponibles','warn');
-    btnRecord.disabled=false;
+    ws.send(JSON.stringify({type:'END'}));
+    statusEl.textContent='Traitement Python en cours…';
   }
+  btnRecord.disabled=true;
 }
 
 function finalizeRecording(){
@@ -1034,8 +931,6 @@ function finalizeRecording(){
   dlLinks.style.display='flex';
 
   showAlert(`Capture terminée · ${S.frameCount} frames · ${fps.toFixed(2)} fps`,'ok');
-
-  statusEl.textContent = 'Analyse CNN1D en cours…';
 }
 
 // ── Affichage résultats ───────────────────────────────────────────
@@ -1092,7 +987,7 @@ function _drawSignal(canvas, signal, hr, fps){
   const W=canvas.parentElement.clientWidth||400, H=140;
   canvas.width=W;canvas.height=H;
   const ctx2=canvas.getContext('2d');
-  ctx2.fillStyle='#F0F4F8';ctx2.fillRect(0,0,W,H);
+  ctx2.fillStyle='#1A2332';ctx2.fillRect(0,0,W,H);
 
   if(!signal||signal.length<2) return;
   const N=signal.length;
@@ -1101,14 +996,14 @@ function _drawSignal(canvas, signal, hr, fps){
   const pad=12;
 
   // Grid
-  ctx2.strokeStyle='rgba(26,110,199,.10)';ctx2.lineWidth=1;
+  ctx2.strokeStyle='rgba(255,255,255,.06)';ctx2.lineWidth=1;
   for(let g=0;g<=4;g++){
     const y=pad+(H-2*pad)*g/4;
     ctx2.beginPath();ctx2.moveTo(0,y);ctx2.lineTo(W,y);ctx2.stroke();
   }
 
   // Signal
-  ctx2.strokeStyle='#1A6EC7';ctx2.lineWidth=1.5;ctx2.beginPath();
+  ctx2.strokeStyle='#00FF8C';ctx2.lineWidth=1.5;ctx2.beginPath();
   for(let i=0;i<N;i++){
     const x=(i/(N-1))*(W-2*pad)+pad;
     const y=pad+(H-2*pad)*(1-(signal[i]-mn)/range);
@@ -1117,7 +1012,7 @@ function _drawSignal(canvas, signal, hr, fps){
   ctx2.stroke();
 
   // HR label
-  ctx2.fillStyle='rgba(26,110,199,.9)';ctx2.font=`600 11px 'JetBrains Mono',monospace`;
+  ctx2.fillStyle='rgba(0,255,140,.8)';ctx2.font=`600 11px 'JetBrains Mono',monospace`;
   ctx2.fillText(`${hr} bpm`,pad+4,H-6);
 }
 
@@ -1125,7 +1020,7 @@ function _drawSpectrum(canvas, freqs, spec, hr){
   const W=canvas.parentElement.clientWidth||400, H=140;
   canvas.width=W;canvas.height=H;
   const ctx2=canvas.getContext('2d');
-  ctx2.fillStyle='#F0F4F8';ctx2.fillRect(0,0,W,H);
+  ctx2.fillStyle='#1A2332';ctx2.fillRect(0,0,W,H);
 
   if(!freqs||freqs.length<2) return;
   const N=freqs.length;
@@ -1133,7 +1028,7 @@ function _drawSpectrum(canvas, freqs, spec, hr){
   const pad=12;
 
   // Grid
-  ctx2.strokeStyle='rgba(26,110,199,.10)';ctx2.lineWidth=1;
+  ctx2.strokeStyle='rgba(255,255,255,.06)';ctx2.lineWidth=1;
   for(let g=0;g<=4;g++){
     const y=pad+(H-2*pad)*g/4;
     ctx2.beginPath();ctx2.moveTo(0,y);ctx2.lineTo(W,y);ctx2.stroke();
@@ -1149,22 +1044,22 @@ function _drawSpectrum(canvas, freqs, spec, hr){
   }
   ctx2.lineTo(W-pad,H-pad);ctx2.closePath();
   const grad=ctx2.createLinearGradient(0,pad,0,H-pad);
-  grad.addColorStop(0,'rgba(26,110,199,0.30)');grad.addColorStop(1,'rgba(26,110,199,0.03)');
+  grad.addColorStop(0,'rgba(0,255,140,0.35)');grad.addColorStop(1,'rgba(0,255,140,0.03)');
   ctx2.fillStyle=grad;ctx2.fill();
-  ctx2.strokeStyle='rgba(26,110,199,0.85)';ctx2.lineWidth=1.5;ctx2.stroke();
+  ctx2.strokeStyle='rgba(0,255,140,0.8)';ctx2.lineWidth=1.5;ctx2.stroke();
 
   // Pic HR
   if(!isNaN(hr)){
     const xHR=pad+(hr-fMin)/(fMax-fMin)*(W-2*pad);
-    ctx2.strokeStyle='rgba(229,62,62,0.8)';ctx2.lineWidth=1.5;ctx2.setLineDash([4,3]);
+    ctx2.strokeStyle='rgba(255,68,68,0.8)';ctx2.lineWidth=1.5;ctx2.setLineDash([4,3]);
     ctx2.beginPath();ctx2.moveTo(xHR,pad);ctx2.lineTo(xHR,H-pad);ctx2.stroke();
     ctx2.setLineDash([]);
-    ctx2.fillStyle='rgba(229,62,62,.9)';ctx2.font=`600 11px 'JetBrains Mono',monospace`;
+    ctx2.fillStyle='rgba(255,68,68,.85)';ctx2.font=`600 11px 'JetBrains Mono',monospace`;
     ctx2.fillText(`${hr} bpm`,Math.min(xHR+4,W-60),pad+12);
   }
 
   // Axe X labels
-  ctx2.fillStyle='rgba(26,26,50,.45)';ctx2.font=`10px 'JetBrains Mono',monospace`;
+  ctx2.fillStyle='rgba(255,255,255,.35)';ctx2.font=`10px 'JetBrains Mono',monospace`;
   [60,90,120,150].forEach(bpm=>{
     if(bpm<fMin||bpm>fMax) return;
     const x=pad+(bpm-fMin)/(fMax-fMin)*(W-2*pad);

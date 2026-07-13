@@ -1,25 +1,6 @@
-# ─────────────────────────────────────────────────────────────
-# Requirements — pipeline rPPG complète
-# ─────────────────────────────────────────────────────────────
-# Note : FaceMesh tourne côté navigateur (CDN JS).
-# MediaPipe Python est requis pour la détection de la paume (côté serveur).
-# ─────────────────────────────────────────────────────────────
-
-# ── server.py — capture live + BiSeNet (model.py / resnet.py) ──
-fastapi==0.110.0
-uvicorn[standard]==0.27.1
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
 websockets==12.0
-python-multipart==0.0.9
-torch==2.2.1
-
-opencv-python-headless==4.9.0.80
+python-multipart>=0.0.9
 numpy==1.26.4
-Pillow==10.2.0
-pandas==2.2.1
-mediapipe==0.10.14
-
-# ── AnalyseRPPG.py — CHROM / POS / FFT sur CSV déjà extrait ──
-# Pas de BiSeNet ici : uniquement du traitement de signal.
-scipy==1.12.0
-matplotlib==3.8.3
-# (numpy et pandas déjà listés ci-dessus, partagés entre les deux scripts)
+torch==2.3.0

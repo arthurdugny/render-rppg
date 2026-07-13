@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: rppg-facepalm-s6
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    envVars:
+      - key: PORT
+        value: 8000
