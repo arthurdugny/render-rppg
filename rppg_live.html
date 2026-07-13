@@ -830,19 +830,38 @@ const WS_URL = _isLocal
   ? `ws://${location.hostname}:8000/ws`
   : `wss://${location.host}/ws`;
 const capCanv=document.createElement('canvas'), capCtx=capCanv.getContext('2d');
-const _jsQueue=[];
-let _jsSending=false;
+// ── Extraction RGB paume côté JS ─────────────────────────────────
+const PALM_ROI_IDX = [[0,5,9,13,17],[0,1,2,5],[0,13,17],[5,9,13,17]];
+let _palmRows = [];  // collecte locale pendant la capture
 
-async function _drainQueue(){
-  if(_jsSending) return;
-  _jsSending=true;
-  while(_jsQueue.length>0){
-    if(!ws||ws.readyState!==WebSocket.OPEN) break;
-    const blob=_jsQueue.shift();
-    const buf=await blob.arrayBuffer();
-    ws.send(buf);
+function _meanNoOutliers(arr){
+  if(!arr.length) return NaN;
+  const m=arr.reduce((a,b)=>a+b,0)/arr.length;
+  const sd=Math.sqrt(arr.reduce((a,b)=>a+(b-m)**2,0)/arr.length)||1;
+  const f=arr.filter(v=>Math.abs(v-m)<=2*sd);
+  return f.length ? f.reduce((a,b)=>a+b,0)/f.length : m;
+}
+
+function extractPalmRGB(lms, imgData, W, H){
+  const row=[];
+  for(const idx of PALM_ROI_IDX){
+    const pts=idx.map(i=>({x:Math.round(lms[i].x*W), y:Math.round(lms[i].y*H)}));
+    const cx=pts.reduce((s,p)=>s+p.x,0)/pts.length;
+    const cy=pts.reduce((s,p)=>s+p.y,0)/pts.length;
+    const r=pts.reduce((s,p)=>s+Math.sqrt((p.x-cx)**2+(p.y-cy)**2),0)/pts.length*0.9;
+    const r2=r*r, Rs=[], Gs=[], Bs=[];
+    const x0=Math.max(0,Math.floor(cx-r)), x1=Math.min(W-1,Math.ceil(cx+r));
+    const y0=Math.max(0,Math.floor(cy-r)), y1=Math.min(H-1,Math.ceil(cy+r));
+    for(let y=y0;y<=y1;y++) for(let x=x0;x<=x1;x++){
+      if((x-cx)**2+(y-cy)**2<=r2){
+        const i=(y*W+x)*4;
+        Rs.push(imgData.data[i]); Gs.push(imgData.data[i+1]); Bs.push(imgData.data[i+2]);
+      }
+    }
+    if(Rs.length<10){ row.push(NaN,NaN,NaN); }
+    else { row.push(_meanNoOutliers(Rs),_meanNoOutliers(Gs),_meanNoOutliers(Bs)); }
   }
-  _jsSending=false;
+  return row;  // 12 valeurs : R,G,B × 4 ROI
 }
 
 function connectWS(){
@@ -853,27 +872,33 @@ function connectWS(){
   ws.onerror=e=>console.warn('[WS] Erreur',e);
   ws.onmessage=e=>{
     const msg=JSON.parse(e.data);
-    if(msg.status==='processing'){
-      statusEl.textContent=`Acquisition — ${msg.done} frames (queue: ${msg.queued})`;
-      pushPalmGreen(msg.palm_g);
-    } else if(msg.status==='done'){
+    if(msg.status==='done'){
       S.analysing=false;
       if(msg.cnn1d){
-        if(msg.cnn1d.error){ showAlert('CNN1D : '+msg.cnn1d.error,'warn'); }
+        if(msg.cnn1d.error){ showAlert('CNN1D : '+msg.cnn1d.error,'warn'); btnRecord.disabled=false; }
         else { showCnn1dResults(msg.cnn1d); statusEl.textContent=`CNN1D terminé — HR = ${msg.cnn1d.hr_bpm} bpm`; }
-      } else {
-        showAlert(`Capture terminée — ${msg.frames} frames`,'ok');
       }
     }
   };
 }
 
 function _captureAndSend(){
-  if(!S.recording||!ws||ws.readyState!==WebSocket.OPEN||video.readyState<2) return;
+  if(!S.recording||video.readyState<2) return;
   const vw=video.videoWidth, vh=video.videoHeight;
   if(capCanv.width!==vw||capCanv.height!==vh){capCanv.width=vw;capCanv.height=vh;}
   capCtx.drawImage(video,0,0,vw,vh);
-  capCanv.toBlob(blob=>{_jsQueue.push(blob);_drainQueue();},'image/jpeg',0.92);
+  if(S.handLandmarks){
+    const imgData=capCtx.getImageData(0,0,vw,vh);
+    const row=extractPalmRGB(S.handLandmarks,imgData,vw,vh);
+    _palmRows.push(row);
+    // BPM live : G moyen des 4 ROI (indices 1,4,7,10)
+    const gs=row.filter((_,i)=>i%3===1).filter(v=>!isNaN(v));
+    if(gs.length) pushPalmGreen(gs.reduce((a,b)=>a+b,0)/gs.length);
+  } else {
+    _palmRows.push(Array(12).fill(NaN));
+  }
+  S.frameCount++;
+  statusEl.textContent=`Acquisition — ${_palmRows.length} frames`;
 }
 
 let _frameCapInt=null;
@@ -952,6 +977,7 @@ function startRecording(){
   // Réinitialiser BPM paume
   _palmGreenBuf.length=0; _palmBpmLastUpdate=0; _palmBpmFrozen=false;
   _palmBpmPrev=null; _palmBpmHoldCount=0;
+  _palmRows=[];
   liveBpmPalmVal.style.fontSize='0.9rem'; liveBpmPalmVal.style.color='var(--muted)';
   liveBpmPalmVal.textContent='Collecte…';
   const capFps=S.stream.getVideoTracks()[0].getSettings().frameRate||S.measuredFps||30;
@@ -971,10 +997,11 @@ function stopRecording(){
   // Figer les BPM live affichés
   _bpmLastUpdate = Infinity;
   _palmBpmFrozen = true;
+  const capFps=S.measuredFps||parseFloat(document.getElementById('fps-select').value)||30;
   if(ws&&ws.readyState===WebSocket.OPEN){
-    ws.send(JSON.stringify({type:'END'}));
+    ws.send(JSON.stringify({type:'END', palm_rows:_palmRows, fps:capFps}));
     statusEl.textContent='Analyse CNN1D en cours…';
-    setTimeout(()=>{ if(S.analysing){ S.analysing=false; showAlert('Délai dépassé — résultats indisponibles','warn'); btnRecord.disabled=false; } }, 90000);
+    setTimeout(()=>{ if(S.analysing){ S.analysing=false; showAlert('Délai dépassé — résultats indisponibles','warn'); btnRecord.disabled=false; } }, 120000);
   } else {
     S.analysing=false;
     showAlert('Serveur non connecté — résultats indisponibles','warn');

@@ -3,22 +3,19 @@
 Serveur rPPG « facepalm » — S5
 
 Endpoints :
-  WS   /ws             streaming frames (START | binary | END) → palm_g par frame
-  GET  /               rppg_live.html
-  POST /process_video  inférence CNN1D paume sur vidéo enregistrée
+  WS  /ws   START → END{palm_rows, fps} → {status:done, cnn1d:{...}}
+  GET /      rppg_live.html
 """
 
-import asyncio, json, queue, sys, threading, time
+import asyncio, json, sys, threading
 from pathlib import Path
 from typing import Optional
 
-import cv2
-import mediapipe as mp
 import numpy as np
 import torch
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse, HTMLResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 import uvicorn
 
@@ -39,12 +36,6 @@ sys.path.insert(0, str(HERE))
 from metrics import extract_all_metrics                                  # type: ignore
 from inference_paume_video import run_cnn1d_full, suppress_outlier_peaks # type: ignore
 
-# ── MediaPipe Hands ──────────────────────────────────────────────────
-_hands = mp.solutions.hands.Hands(
-    static_image_mode=False, max_num_hands=1,
-    min_detection_confidence=0.5, min_tracking_confidence=0.5,
-)
-
 # ── CNN1D ────────────────────────────────────────────────────────────
 
 def load_cnn1d():
@@ -58,162 +49,34 @@ def load_cnn1d():
         print(f"[CNN1D] ATTENTION : {CKPT_PATH} introuvable")
     return model.eval()
 
-# ── Extraction paume ─────────────────────────────────────────────────
+# ── Inférence CNN1D ───────────────────────────────────────────────────
 
-PALM_ROIS = {
-    "centre":      [0, 5, 9, 13, 17],
-    "thenar":      [0, 1, 2, 5],
-    "hypothenar":  [0, 13, 17],
-    "base_doigts": [5, 9, 13, 17],
-}
-PALM_ROI_NAMES = list(PALM_ROIS.keys())
-_ERODE5 = np.ones((5, 5), np.uint8)
-
-def _skin_hsv(frame_bgr):
-    hsv = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2HSV)
-    m1 = cv2.inRange(hsv, np.array([0, 15, 40], dtype=np.uint8),   np.array([25, 200, 255], dtype=np.uint8))
-    m2 = cv2.inRange(hsv, np.array([165, 15, 40], dtype=np.uint8), np.array([180, 200, 255], dtype=np.uint8))
-    return cv2.morphologyEx(cv2.bitwise_or(m1, m2), cv2.MORPH_CLOSE, _ERODE5)
-
-def _roi_mask_palm(shape, landmarks, indices):
-    h, w = shape[:2]
-    pts = np.array([[int(landmarks[i].x * w), int(landmarks[i].y * h)] for i in indices], dtype=np.int32)
-    hull = cv2.convexHull(pts)
-    m = np.zeros((h, w), dtype=np.uint8)
-    cv2.fillConvexPoly(m, hull, 255)
-    return cv2.erode(m, _ERODE5, iterations=1)
-
-def _region_rgb_palm(frame_bgr, mask_roi, mask_skin, sigma=2.0):
-    final = cv2.bitwise_and(mask_roi, mask_skin)
-    pix = frame_bgr[final > 0].astype(np.float32)
-    if len(pix) < 30:
-        return np.nan, np.nan, np.nan
-    keep = np.ones(len(pix), dtype=bool)
-    for c in range(3):
-        med, std = np.median(pix[:, c]), np.std(pix[:, c])
-        if std > 0:
-            keep &= np.abs(pix[:, c] - med) <= sigma * std
-    pix = pix[keep]
-    if len(pix) < 30:
-        return np.nan, np.nan, np.nan
-    return float(pix[:, 2].mean()), float(pix[:, 1].mean()), float(pix[:, 0].mean())
-
-def extract_palm(frame_bgr):
-    rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-    res = _hands.process(rgb)
-    if not res.multi_hand_landmarks:
-        return None
-    lm = res.multi_hand_landmarks[0].landmark
-    skin = _skin_hsv(frame_bgr)
-    out = {}
-    for name, idx in PALM_ROIS.items():
-        m = _roi_mask_palm(frame_bgr.shape, lm, idx)
-        out[name] = _region_rgb_palm(frame_bgr, m, skin)
-    return out
-
-# ── Session ───────────────────────────────────────────────────────────
-
-class Session:
-    def __init__(self):
-        self.frame_queue: queue.Queue = queue.Queue()
-        self.palm_rows: list = []
-        self.done = threading.Event()
-        self.fps = 30.0
-        self.cnn1d = None
-        self.frame_count = 0
-        self.last_palm_g: Optional[float] = None
-        self._t0 = None
-        self._t1 = None
-
-    def start(self, cnn1d, fps):
-        self.cnn1d = cnn1d
-        self.fps = fps
-        self.done.clear()
-        self.palm_rows = []
-        self.frame_count = 0
-        self.last_palm_g = None
-        self._t0 = self._t1 = None
-        self.worker = threading.Thread(target=self._loop, daemon=True)
-        self.worker.start()
-        print(f"[Session] Démarrée (fps={fps})")
-
-    def push_frame(self, jpeg):
-        self.frame_queue.put(jpeg)
-
-    def end(self):
-        self.frame_queue.put(None)
-
-    def _loop(self):
-        try:
-            self._loop_inner()
-        except Exception:
-            import traceback
-            traceback.print_exc()
-            self.done.set()
-
-    def _loop_inner(self):
-        while True:
-            item = self.frame_queue.get()
-            if item is None:
-                break
-            t = time.monotonic()
-            self._t0 = self._t0 or t
-            self._t1 = t
-
-            frame = cv2.imdecode(np.frombuffer(item, np.uint8), cv2.IMREAD_COLOR)
-            if frame is None:
-                continue
-
-            palm = extract_palm(frame)
-            if palm:
-                palm_row = []
-                for name in PALM_ROI_NAMES:
-                    palm_row.extend(palm[name])
-                g_vals = [palm_row[i] for i in (1, 4, 7, 10) if not np.isnan(palm_row[i])]
-                self.last_palm_g = float(np.mean(g_vals)) if g_vals else None
-            else:
-                palm_row = [np.nan] * 12
-                self.last_palm_g = None
-            self.palm_rows.append(palm_row)
-
-            self.frame_count += 1
-            if self.frame_count % 30 == 0:
-                detected = sum(1 for r in self.palm_rows if not all(np.isnan(v) for v in r))
-                print(f"[Session] {self.frame_count} frames — paume détectée : {detected}/{len(self.palm_rows)}")
-
-        if self._t0 and self._t1 and self.frame_count > 1:
-            self.fps = (self.frame_count - 1) / (self._t1 - self._t0)
-
-        self.cnn1d_result = self._run_cnn1d()
-        self.done.set()
-
-    def _run_cnn1d(self):
-        arr = np.array(self.palm_rows, dtype=np.float32)
-        if arr.shape[0] < 30 or self.cnn1d is None:
-            return {"error": "Pas assez de frames paume"}
-        try:
-            rppg = suppress_outlier_peaks(run_cnn1d_full(arr, self.cnn1d, self.fps, _device))
-            m = extract_all_metrics(rppg, self.fps)
-            N = len(rppg)
-            freqs = np.fft.rfftfreq(N, d=1.0 / self.fps)
-            spec  = np.abs(np.fft.rfft(rppg))
-            mask  = (freqs >= 0.7) & (freqs <= 3.0)
-            freqs_m, spec_m = freqs[mask], spec[mask]
-            step = max(1, N // 600)
-            hr = round(float(m.get("hr_bpm", float("nan"))), 1)
-            print(f"[CNN1D] HR = {hr} bpm ({N} frames, {self.fps:.2f} fps)")
-            return {
-                "rppg_signal": rppg[::step].tolist(),
-                "freqs_bpm":   (freqs_m * 60).tolist(),
-                "spectrum":    (spec_m / (spec_m.max() + 1e-9)).tolist(),
-                "hr_bpm":      hr,
-                "n_frames":    N,
-                "fps":         round(self.fps, 3),
-            }
-        except Exception:
-            import traceback; traceback.print_exc()
-            return {"error": "Échec CNN1D"}
-
+def run_cnn1d(palm_rows, fps, model):
+    arr = np.array(palm_rows, dtype=np.float32)
+    if arr.shape[0] < 30 or model is None:
+        return {"error": "Pas assez de frames paume"}
+    try:
+        rppg = suppress_outlier_peaks(run_cnn1d_full(arr, model, fps, _device))
+        m = extract_all_metrics(rppg, fps)
+        N = len(rppg)
+        freqs = np.fft.rfftfreq(N, d=1.0 / fps)
+        spec  = np.abs(np.fft.rfft(rppg))
+        mask  = (freqs >= 0.7) & (freqs <= 3.0)
+        freqs_m, spec_m = freqs[mask], spec[mask]
+        step = max(1, N // 600)
+        hr = round(float(m.get("hr_bpm", float("nan"))), 1)
+        print(f"[CNN1D] HR = {hr} bpm ({N} frames, {fps:.2f} fps)")
+        return {
+            "rppg_signal": rppg[::step].tolist(),
+            "freqs_bpm":   (freqs_m * 60).tolist(),
+            "spectrum":    (spec_m / (spec_m.max() + 1e-9)).tolist(),
+            "hr_bpm":      hr,
+            "n_frames":    N,
+            "fps":         round(fps, 3),
+        }
+    except Exception:
+        import traceback; traceback.print_exc()
+        return {"error": "Échec CNN1D"}
 
 # ── FastAPI ───────────────────────────────────────────────────────────
 
@@ -227,57 +90,46 @@ class COOPCOEPMiddleware(BaseHTTPMiddleware):
         return response
 
 app.add_middleware(COOPCOEPMiddleware)
-cnn1d_model: Optional[object] = None
-active_session: Optional[Session] = None
 
+cnn1d_model = None
 
 @app.on_event("startup")
 def startup():
     global cnn1d_model
     cnn1d_model = load_cnn1d()
 
-
 @app.get("/")
 def index():
     return FileResponse(str(HTML_PATH)) if HTML_PATH.exists() else HTMLResponse("<h1>rppg_live.html introuvable</h1>")
 
-
-
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
-    global active_session
     await ws.accept()
-    session = Session()
-    active_session = session
     loop = asyncio.get_event_loop()
     try:
         while True:
             msg = await ws.receive()
-            if "text" in msg:
-                data = json.loads(msg["text"])
-                if data.get("type") == "START":
-                    session.start(cnn1d_model, float(data.get("fps", 30)))
-                    await ws.send_text(json.dumps({"status": "started"}))
-                elif data.get("type") == "END":
-                    session.end()
-                    await loop.run_in_executor(None, session.done.wait, 600)
-                    resp = {"status": "done", "frames": session.frame_count}
-                    if session.cnn1d_result:
-                        resp["cnn1d"] = session.cnn1d_result
-                    await ws.send_text(json.dumps(resp))
-            elif "bytes" in msg:
-                session.push_frame(msg["bytes"])
-                await ws.send_text(json.dumps({
-                    "status": "processing",
-                    "queued": session.frame_queue.qsize(),
-                    "done":   session.frame_count,
-                    "palm_g": session.last_palm_g,
-                }))
+            if "text" not in msg:
+                continue
+            data = json.loads(msg["text"])
+
+            if data.get("type") == "START":
+                await ws.send_text(json.dumps({"status": "started"}))
+
+            elif data.get("type") == "END":
+                palm_rows = data.get("palm_rows", [])
+                fps = float(data.get("fps", 30))
+                print(f"[WS] END reçu — {len(palm_rows)} frames, fps={fps:.2f}")
+                result = await loop.run_in_executor(
+                    None, run_cnn1d, palm_rows, fps, cnn1d_model
+                )
+                await ws.send_text(json.dumps({"status": "done", "cnn1d": result}))
+
     except WebSocketDisconnect:
         print("[WS] Client déconnecté")
     except Exception as e:
-        print(f"[WS] Erreur : {e}")
-
+        import traceback; traceback.print_exc()
 
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=int(__import__("os").environ.get("PORT", 8000)), reload=False)
+    port = int(__import__("os").environ.get("PORT", 8000))
+    uvicorn.run("server:app", host="0.0.0.0", port=port, reload=False)
