@@ -764,7 +764,8 @@ function startMpLoop() {
 
 // ── WebSocket ────────────────────────────────────────────────────
 let ws=null;
-const WS_URL = `ws://${location.hostname}:8000/ws`;
+const _isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const WS_URL = _isLocal ? `ws://${location.hostname}:8000/ws` : `wss://${location.host}/ws`;
 const capCanv=document.createElement('canvas'), capCtx=capCanv.getContext('2d');
 const _jsQueue=[];
 let _jsSending=false;
