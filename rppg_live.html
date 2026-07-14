@@ -767,19 +767,38 @@ let ws=null;
 const _isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const WS_URL = _isLocal ? `ws://${location.hostname}:8000/ws` : `wss://${location.host}/ws`;
 const capCanv=document.createElement('canvas'), capCtx=capCanv.getContext('2d');
-const _jsQueue=[];
-let _jsSending=false;
+let _palmRows=[];
 
-async function _drainQueue(){
-  if(_jsSending) return;
-  _jsSending=true;
-  while(_jsQueue.length>0){
-    if(!ws||ws.readyState!==WebSocket.OPEN) break;
-    const blob=_jsQueue.shift();
-    const buf=await blob.arrayBuffer();
-    ws.send(buf);
+function extractPalmRGB(lms, imgData, W, H){
+  const row=[];
+  for(const roi of PALM_ROIS){
+    const pts=roi.idx.map(i=>({x:Math.round(lms[i].x*W),y:Math.round(lms[i].y*H)}));
+    const cx=Math.round(pts.reduce((s,p)=>s+p.x,0)/pts.length);
+    const cy=Math.round(pts.reduce((s,p)=>s+p.y,0)/pts.length);
+    const dx=pts.map(p=>Math.abs(p.x-cx)), dy=pts.map(p=>Math.abs(p.y-cy));
+    const r=Math.max(4,Math.round((Math.max(...dx)+Math.max(...dy))/2*0.6));
+    let rS=0,gS=0,bS=0,n=0;
+    const vals=[];
+    for(let y=Math.max(0,cy-r);y<Math.min(H,cy+r);y++){
+      for(let x=Math.max(0,cx-r);x<Math.min(W,cx+r);x++){
+        if((x-cx)**2+(y-cy)**2>r*r) continue;
+        const i=(y*W+x)*4;
+        vals.push([imgData.data[i],imgData.data[i+1],imgData.data[i+2]]);
+      }
+    }
+    if(vals.length>=10){
+      const med=(arr)=>{const s=[...arr].sort((a,b)=>a-b);return s[Math.floor(s.length/2)];};
+      const mR=med(vals.map(v=>v[0])),mG=med(vals.map(v=>v[1])),mB=med(vals.map(v=>v[2]));
+      const s=10;
+      const filt=vals.filter(v=>Math.abs(v[0]-mR)<s&&Math.abs(v[1]-mG)<s&&Math.abs(v[2]-mB)<s);
+      const src=filt.length>=10?filt:vals;
+      rS=src.reduce((a,v)=>a+v[0],0)/src.length;
+      gS=src.reduce((a,v)=>a+v[1],0)/src.length;
+      bS=src.reduce((a,v)=>a+v[2],0)/src.length;
+    } else { rS=gS=bS=NaN; }
+    row.push(rS,gS,bS);
   }
-  _jsSending=false;
+  return row;
 }
 
 function connectWS(){
@@ -790,26 +809,27 @@ function connectWS(){
   ws.onerror=e=>console.warn('[WS] Erreur',e);
   ws.onmessage=e=>{
     const msg=JSON.parse(e.data);
-    if(msg.status==='processing'){
-      statusEl.textContent=`Acquisition — ${msg.done} frames (queue: ${msg.queued})`;
-    } else if(msg.status==='done'){
-      showAlert(`Capture terminée — ${msg.frames} frames · Analyse CNN1D en cours…`,'ok');
-      // Lancer les deux analyses en parallèle
-      if(msg.cnn1d_ready){
-        fetch(`http://${location.hostname}:8000/analyse_palm`)
-          .then(r=>r.json()).then(showCnn1dResults)
-          .catch(e=>showAlert('CNN1D : '+e.message,'warn'));
-      }
+    if(msg.status==='done'){
+      S.analysing=false;
+      if(msg.cnn1d) showCnn1dResults(msg.cnn1d);
+      else showAlert('CNN1D : pas de résultat','warn');
     }
   };
 }
 
 function _captureAndSend(){
-  if(!S.recording||!ws||ws.readyState!==WebSocket.OPEN||video.readyState<2) return;
+  if(!S.recording||video.readyState<2) return;
   const vw=video.videoWidth, vh=video.videoHeight;
   if(capCanv.width!==vw||capCanv.height!==vh){capCanv.width=vw;capCanv.height=vh;}
   capCtx.drawImage(video,0,0,vw,vh);
-  capCanv.toBlob(blob=>{_jsQueue.push(blob);_drainQueue();},'image/jpeg',0.92);
+  if(S.handLandmarks){
+    const imgData=capCtx.getImageData(0,0,vw,vh);
+    _palmRows.push(extractPalmRGB(S.handLandmarks,imgData,vw,vh));
+  } else {
+    _palmRows.push(Array(12).fill(NaN));
+  }
+  S.frameCount++;
+  statusEl.textContent=`Acquisition — ${_palmRows.length} frames`;
 }
 
 let _frameCapInt=null;
@@ -875,7 +895,7 @@ btnRecord.onclick=startRecording;
 function startRecording(){
   if(!S.stream) return;
   S.targetDur=parseInt(document.getElementById('dur-input').value)||30;
-  S.chunks=[];S.frameCount=0;
+  S.chunks=[];S.frameCount=0;_palmRows=[];
   _liveFrozen=false; _greenBuf.length=0; _bpmLastUpdate=0;
   const pref=document.getElementById('codec-select').value;
   const mimes=[pref,'video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
@@ -901,8 +921,10 @@ function stopRecording(){
   _liveFrozen = true;
   stopFrameCapture(); S.recorder.stop();
   if(ws&&ws.readyState===WebSocket.OPEN){
-    ws.send(JSON.stringify({type:'END'}));
-    statusEl.textContent='Traitement Python en cours…';
+    const capFps=S.stream.getVideoTracks()[0].getSettings().frameRate||S.measuredFps||30;
+    S.analysing=true;
+    ws.send(JSON.stringify({type:'END', palm_rows:_palmRows, fps:capFps}));
+    statusEl.textContent=`Analyse CNN1D (${_palmRows.length} frames)…`;
   }
   btnRecord.disabled=true;
 }
