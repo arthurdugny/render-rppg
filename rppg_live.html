@@ -717,19 +717,19 @@ async function initMediaPipe() {
   const vision = await FilesetResolver.forVisionTasks(
     'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
   );
-  _faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-      delegate: 'GPU'
-    },
-    runningMode: 'VIDEO', numFaces: 1, outputFaceBlendshapes: false
+
+  async function tryCreate(factory, opts) {
+    try { return await factory(vision, { baseOptions: { ...opts.baseOptions, delegate: 'GPU' }, ...opts.rest }); }
+    catch(_) { return await factory(vision, { baseOptions: { ...opts.baseOptions, delegate: 'CPU' }, ...opts.rest }); }
+  }
+
+  _faceLandmarker = await tryCreate(FaceLandmarker.createFromOptions.bind(FaceLandmarker), {
+    baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task' },
+    rest: { runningMode: 'VIDEO', numFaces: 1, outputFaceBlendshapes: false }
   });
-  _handLandmarker = await HandLandmarker.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
-      delegate: 'GPU'
-    },
-    runningMode: 'VIDEO', numHands: 1
+  _handLandmarker = await tryCreate(HandLandmarker.createFromOptions.bind(HandLandmarker), {
+    baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task' },
+    rest: { runningMode: 'VIDEO', numHands: 1 }
   });
 }
 
