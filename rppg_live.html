@@ -312,6 +312,7 @@ const PATIENT = (typeof window.TRIAGE_PATIENT !== 'undefined' && window.TRIAGE_P
   age: _p('age') ? parseInt(_p('age')) : null,
   sex: _p('sex') || null,
 };
+console.log('[rPPG] PATIENT=', JSON.stringify(PATIENT), '| hash=', location.hash, '| search=', location.search);
 </script>
 <script>
 // ── État global ───────────────────────────────────────────────────
