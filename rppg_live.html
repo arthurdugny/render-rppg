@@ -1051,8 +1051,6 @@ function showCnn1dResults(data){
     if(bp){
       document.getElementById('bp-sbp').textContent = bp.sbp.toFixed(0);
       document.getElementById('bp-dbp').textContent = bp.dbp.toFixed(0);
-      const sexLabel = PATIENT.sex==='M' ? 'Homme' : 'Femme';
-      document.getElementById('bp-sub').textContent = `${sexLabel}, ${PATIENT.age} ans`;
       bpBlock.style.display='flex';
     }
   }
