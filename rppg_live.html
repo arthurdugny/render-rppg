@@ -305,10 +305,12 @@ function estimateBP(age, sex) {
   return BP_LOOKUP[s][String(a)] || null;
 }
 // ── Patient (injecté par le proxy ou URL params) ──────────────────
-const _params = new URLSearchParams(location.search);
+const _pSearch = new URLSearchParams(location.search);
+const _pHash   = new URLSearchParams(location.hash.replace(/^#/,''));
+const _p = (k) => _pSearch.get(k) || _pHash.get(k);
 const PATIENT = (typeof window.TRIAGE_PATIENT !== 'undefined' && window.TRIAGE_PATIENT) || {
-  age: _params.get('age') ? parseInt(_params.get('age')) : null,
-  sex: _params.get('sex') || null,
+  age: _p('age') ? parseInt(_p('age')) : null,
+  sex: _p('sex') || null,
 };
 </script>
 <script>
