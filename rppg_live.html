@@ -887,11 +887,8 @@ function startMpLoop() {
     if(_faceLandmarker) {
       try {
         const r = _faceLandmarker.detectForVideo(video, now);
-        const detected = (r.faceLandmarks && r.faceLandmarks[0]) || null;
-        if(detected) { S.landmarks = detected; _cachedFaceLms = detected; }
-        // si non détecté (ex: main devant), on garde le cache pour le rendu
-        else if(_cachedFaceLms) S.landmarks = _cachedFaceLms;
-        else S.landmarks = null;
+        S.landmarks = (r.faceLandmarks && r.faceLandmarks[0]) || null;
+        if(S.landmarks) _cachedFaceLms = S.landmarks;
       } catch(e) {}
     }
     if(_handLandmarker && _mpFrameN % 2 === 0) {
