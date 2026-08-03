@@ -607,9 +607,9 @@ function drawROIs(W, H) {
 
 // ── Quality warnings ──────────────────────────────────────────────
 const QUALITY_THRESHOLDS = {
-  handMinArea : 0.07,   // bbox main / frame (coords normalisées)
+  handMinArea : 0.14,   // bbox main / frame (coords normalisées)
   palmMinLum  : 35,     // luminosité paume 0-255
-  bgMaxLum    : 210,    // luminosité fond 0-255
+  bgMaxLum    : 170,    // luminosité fond 0-255 (90e percentile hors bbox)
 };
 let _qwarnLast = '';
 let _cachedFaceLms = null;
@@ -683,17 +683,27 @@ function checkQuality() {
         warns.push('Éclairez davantage votre paume');
     }
 
-    // Fond : bande au-dessus du bbox main
-    const marginY = Math.round(CH * 0.04);
-    const bx0 = Math.max(0, Math.round(minX * CW));
-    const bx1 = Math.min(CW, Math.round(maxX * CW));
-    const by0 = Math.max(0, Math.round(minY * CH) - marginY);
-    const by1 = Math.max(0, Math.round(minY * CH));
-    if(bx1 > bx0 && by1 > by0) {
-      const bgImg = capCtxQ.getImageData(bx0, by0, bx1 - bx0, by1 - by0);
-      const bgLum = _sampleLum(bgImg, 0, 0, bx1 - bx0, by1 - by0);
-      if(bgLum !== null && bgLum > QUALITY_THRESHOLDS.bgMaxLum)
-        warns.push('Arrière-plan trop lumineux — évitez la lumière derrière vous');
+    // Fond : 90e percentile de luminosité hors bbox main (scan sous-échantillonné)
+    {
+      const hx0 = Math.round(minX * CW), hx1 = Math.round(maxX * CW);
+      const hy0 = Math.round(minY * CH), hy1 = Math.round(maxY * CH);
+      const full = capCtxQ.getImageData(0, 0, CW, CH);
+      const d = full.data;
+      const step = 8; // 1 pixel sur 8 pour rester léger
+      const lums = [];
+      for(let y = 0; y < CH; y += step) {
+        for(let x = 0; x < CW; x += step) {
+          if(x >= hx0 && x <= hx1 && y >= hy0 && y <= hy1) continue; // skip bbox main
+          const i = (y * CW + x) * 4;
+          lums.push(0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]);
+        }
+      }
+      if(lums.length > 10) {
+        lums.sort((a,b) => a-b);
+        const p90 = lums[Math.floor(lums.length * 0.90)];
+        if(p90 > QUALITY_THRESHOLDS.bgMaxLum)
+          warns.push('Arrière-plan trop lumineux — évitez la lumière derrière vous');
+      }
     }
   }
 
