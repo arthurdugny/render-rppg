@@ -607,9 +607,9 @@ function drawROIs(W, H) {
 
 // ── Quality warnings ──────────────────────────────────────────────
 const QUALITY_THRESHOLDS = {
-  handMinArea : 0.14,   // bbox main / frame (coords normalisées)
-  palmMinLum  : 35,     // luminosité paume 0-255
-  bgMaxLum    : 205,    // luminosité fond 0-255 (90e percentile hors bbox)
+  handMinArea  : 0.16,  // bbox main / frame (coords normalisées)
+  palmMinLum   : 35,    // plancher absolu paume (vraiment éteinte)
+  backlightDelta: 65,   // bg_p90 - palm_lum > seuil → contre-jour
 };
 let _qwarnLast = '';
 let _cachedFaceLms = null;
@@ -670,40 +670,47 @@ function checkQuality() {
   if(_qCanvas.width > 0 && _qCanvas.height > 0) {
     const capCtxQ = _qCtx;
     const CW = _qCanvas.width, CH = _qCanvas.height;
-    // Paume : centre autour du landmark 9 (MCP majeur)
-    const pc = lms[9];
-    const pr = Math.round(Math.min(CW, CH) * 0.04);
-    const px0 = Math.max(0, Math.round(pc.x * CW) - pr);
-    const py0 = Math.max(0, Math.round(pc.y * CH) - pr);
-    const pw  = Math.min(pr*2, CW - px0), ph = Math.min(pr*2, CH - py0);
-    if(pw > 0 && ph > 0) {
-      const palmImg = capCtxQ.getImageData(px0, py0, pw, ph);
-      const palmLum = _sampleLum(palmImg, 0, 0, pw, ph);
-      if(palmLum !== null && palmLum < QUALITY_THRESHOLDS.palmMinLum)
-        warns.push('Éclairez davantage votre paume');
+    // Luminosité paume (moyenne autour du landmark 9, MCP majeur)
+    let palmLum = null;
+    {
+      const pc = lms[9];
+      const pr = Math.round(Math.min(CW, CH) * 0.04);
+      const px0 = Math.max(0, Math.round(pc.x * CW) - pr);
+      const py0 = Math.max(0, Math.round(pc.y * CH) - pr);
+      const pw  = Math.min(pr*2, CW - px0), ph = Math.min(pr*2, CH - py0);
+      if(pw > 0 && ph > 0) {
+        const palmImg = capCtxQ.getImageData(px0, py0, pw, ph);
+        palmLum = _sampleLum(palmImg, 0, 0, pw, ph);
+      }
     }
 
-    // Fond : 90e percentile de luminosité hors bbox main (scan sous-échantillonné)
+    // Fond : p90 hors bbox main
+    let bgP90 = null;
     {
       const hx0 = Math.round(minX * CW), hx1 = Math.round(maxX * CW);
       const hy0 = Math.round(minY * CH), hy1 = Math.round(maxY * CH);
       const full = capCtxQ.getImageData(0, 0, CW, CH);
       const d = full.data;
-      const step = 8; // 1 pixel sur 8 pour rester léger
       const lums = [];
-      for(let y = 0; y < CH; y += step) {
-        for(let x = 0; x < CW; x += step) {
-          if(x >= hx0 && x <= hx1 && y >= hy0 && y <= hy1) continue; // skip bbox main
+      for(let y = 0; y < CH; y += 8) {
+        for(let x = 0; x < CW; x += 8) {
+          if(x >= hx0 && x <= hx1 && y >= hy0 && y <= hy1) continue;
           const i = (y * CW + x) * 4;
           lums.push(0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2]);
         }
       }
       if(lums.length > 10) {
         lums.sort((a,b) => a-b);
-        const p90 = lums[Math.floor(lums.length * 0.90)];
-        if(p90 > QUALITY_THRESHOLDS.bgMaxLum)
-          warns.push('Arrière-plan trop lumineux — évitez la lumière derrière vous');
+        bgP90 = lums[Math.floor(lums.length * 0.90)];
       }
+    }
+
+    // Règle adaptative : contre-jour si fond - paume > delta
+    if(palmLum !== null && palmLum < QUALITY_THRESHOLDS.palmMinLum) {
+      warns.push('Éclairez davantage votre paume');
+    } else if(palmLum !== null && bgP90 !== null &&
+              bgP90 - palmLum > QUALITY_THRESHOLDS.backlightDelta) {
+      warns.push('Arrière-plan trop lumineux — évitez la lumière derrière vous');
     }
   }
 
