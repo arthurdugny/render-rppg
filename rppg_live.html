@@ -1112,14 +1112,16 @@ function finalizeRecording(){
   const ext=S.mimeType.includes('mp4')?'mp4':'webm';
   S.videoBlob=new Blob(S.chunks,{type:S.mimeType||'video/webm'});
   const elapsed=(performance.now()-S.startTs)/1000;
-  // Même calcul que dans stopRecording (frames réellement capturées / durée
-  // réelle) — S.measuredFps mesure la boucle de rendu, pas la cadence de
-  // capture des palm_rows, donc ne doit pas servir de source de vérité ici.
-  const fps=(elapsed>0&&S.frameCount>0) ? S.frameCount/elapsed
+  // _palmRows.length, pas S.frameCount : ce dernier est aussi incrémenté par
+  // drawFrame() (boucle de rendu UI, ~2x plus vite que la vraie cadence de
+  // capture) — il ne reflète pas le nombre réel de frames envoyées au
+  // serveur. Même calcul que dans stopRecording.
+  const nFrames=_palmRows.length;
+  const fps=(elapsed>0&&nFrames>0) ? nFrames/elapsed
     : (S.measuredFps||parseFloat(document.getElementById('fps-select').value));
   document.getElementById('log-fps').textContent=fps.toFixed(2);
   document.getElementById('log-dur').textContent=elapsed.toFixed(3);
-  document.getElementById('log-frames').textContent=S.frameCount;
+  document.getElementById('log-frames').textContent=nFrames;
   document.getElementById('export-section').style.display='block';
   statusEl.textContent=`Prêt — ${elapsed.toFixed(1)}s @ ${fps.toFixed(2)} fps`;
   timerEl.style.display='none';progressB.style.width='100%';
@@ -1136,7 +1138,7 @@ function finalizeRecording(){
   dlLinks.appendChild(aVid);
   dlLinks.style.display='flex';
 
-  showAlert(`Capture terminée · ${S.frameCount} frames · ${fps.toFixed(2)} fps`,'ok');
+  showAlert(`Capture terminée · ${nFrames} frames · ${fps.toFixed(2)} fps`,'ok');
 }
 
 // ── Affichage résultats ───────────────────────────────────────────
