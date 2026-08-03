@@ -630,7 +630,7 @@ function _sampleLum(imgData, x0, y0, w, h) {
 function checkQuality() {
   const warnEl = document.getElementById('quality-warns');
   if(!warnEl) return;
-  if(!S.recording || !S.handLandmarks) { if(warnEl.innerHTML) warnEl.innerHTML=''; _qwarnLast=''; return; }
+  if(!S.handLandmarks) { if(warnEl.innerHTML) warnEl.innerHTML=''; _qwarnLast=''; return; }
 
   const lms = S.handLandmarks;
   const warns = [];
