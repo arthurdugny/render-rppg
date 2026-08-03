@@ -100,49 +100,51 @@ def _run_cnn1d_overlap(arr: np.ndarray, fps: float, model, clip_len: int = 512) 
     return rppg_full
 
 
-def _local_maxima(a: np.ndarray, min_val: float) -> np.ndarray:
-    """Indices des maxima locaux stricts au-dessus de min_val — implémentation
-    numpy pure (pas de dépendance scipy, cf. contrainte mémoire Render)."""
-    if len(a) < 3:
-        return np.array([], dtype=int)
-    is_max = (a[1:-1] > a[:-2]) & (a[1:-1] >= a[2:]) & (a[1:-1] >= min_val)
-    return np.where(is_max)[0] + 1
-
-
 def _pick_hr_harmonic(freqs_bpm: np.ndarray, spec: np.ndarray, band=(45.0, 180.0),
-                       harmonic_tol_bpm: float = 6.0,
-                       harmonic_weights=(0.7, 0.45)) -> tuple:
-    """Sélectionne le pic HR dans la bande cardiaque par sommation
-    harmonique (fondamental + 2e/3e harmonique pondérés, cf. subharmonic
-    summation) plutôt qu'un simple argmax — un artefact de dérive/mouvement
-    résiduel n'a normalement pas d'harmoniques cohérentes avec lui-même,
-    contrairement à un vrai pouls. Le bruit de fond contribue de façon
-    similaire au score de chaque candidat (il s'additionne aux deux), donc
-    ce qui fait la différence est bien l'énergie réelle aux harmoniques,
-    pas seulement l'amplitude brute du fondamental."""
+                       harmonic_tol_bpm: float = 3.0, min_ratio: float = 2.5,
+                       harmonic_weights=(1.0, 0.5)) -> tuple:
+    """Sélectionne le pic HR dans la bande cardiaque par un score
+    multiplicatif type harmonic product spectrum : chaque candidat f0 est
+    boosté seulement si une vraie harmonique (2f0, 3f0) dépasse nettement
+    (>2.5x) le plancher de bruit — un artefact de dérive/mouvement n'a
+    normalement pas d'harmoniques cohérentes avec lui-même, contrairement à
+    un vrai pouls.
+
+    Une pondération additive simple échoue dès que le candidat parasite est
+    ne serait-ce que ~2x plus fort en amplitude brute que le vrai fondamental
+    (cas réel observé : un pic bas-fréquence sans structure harmonique plus
+    haut que le vrai pouls, mais dont la 2e harmonique est bien visible plus
+    loin dans le spectre) — la pondération multiplicative avec seuil
+    d'activation (min_ratio) évite de récompenser un candidat sur du bruit
+    qui coïncide par hasard avec sa position d'harmonique.
+
+    Le score est évalué sur CHAQUE bin de la bande, pas seulement sur les
+    maxima locaux détectés : le vrai fondamental cardiaque peut ne pas être
+    lui-même le plus haut pic local (noyé dans une bosse basse-fréquence
+    plus large) tout en ayant une harmonique nette ailleurs."""
     band_mask = (freqs_bpm >= band[0]) & (freqs_bpm <= band[1])
     freqs_b, spec_b = freqs_bpm[band_mask], spec[band_mask]
     if len(spec_b) == 0:
         return float("nan"), 0.0
 
-    idx_peaks = _local_maxima(spec_b, (np.median(spec_b) + 1e-9) * 1.15)
-    if len(idx_peaks) == 0:
-        idx_peaks = np.array([int(np.argmax(spec_b))])
+    floor = np.median(spec_b) + 1e-9
 
     def spec_near(f_bpm: float) -> float:
         hmask = np.abs(freqs_bpm - f_bpm) <= harmonic_tol_bpm
         return float(spec[hmask].max()) if hmask.any() else 0.0
 
-    def comb_score(f0: float) -> float:
-        s = spec_near(f0)
+    scores = np.empty(len(freqs_b))
+    for i, f0 in enumerate(freqs_b):
+        s = spec_b[i]
         for k, w in zip((2, 3), harmonic_weights):
             if k * f0 > freqs_bpm[-1]:
                 break
-            s += w * spec_near(k * f0)
-        return s
+            ratio = spec_near(k * f0) / floor
+            if ratio > min_ratio:
+                s *= 1.0 + w * (ratio - 1.0)
+        scores[i] = s
 
-    scores = [comb_score(freqs_b[i]) for i in idx_peaks]
-    best = idx_peaks[int(np.argmax(scores))]
+    best = int(np.argmax(scores))
     confidence = float(spec_b[best] / (spec_b.max() + 1e-9))
     return float(freqs_b[best]), confidence
 
