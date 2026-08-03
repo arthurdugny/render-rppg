@@ -107,8 +107,11 @@ def run_cnn1d(palm_rows, fps, model):
     try:
         rppg = _suppress_outliers(_run_cnn1d_overlap(arr, fps, model))
         N = len(rppg)
-        # détrending linéaire + fenêtrage Hanning pour éviter la fuite basse-fréquence
-        rppg_d = rppg - np.polyval(np.polyfit(np.arange(N), rppg, 1), np.arange(N))
+        # Passe-haut par soustraction de moyenne glissante (élimine toute dérive < ~0.6 Hz)
+        win_hp = max(3, int(round(fps * 1.6)))  # fenêtre ~1.6 s → coupe < ~0.6 Hz (36 bpm)
+        if win_hp % 2 == 0: win_hp += 1
+        ma = np.convolve(rppg, np.ones(win_hp) / win_hp, mode='same')
+        rppg_d = rppg - ma
         freqs_bpm = np.fft.rfftfreq(N, d=1.0 / fps) * 60  # Hz → bpm
         spec      = np.abs(np.fft.rfft(rppg_d * np.hanning(N)))
         mask      = (freqs_bpm >= 45) & (freqs_bpm <= 180)
