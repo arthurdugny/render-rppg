@@ -278,7 +278,7 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
       </div>
       <div class="chart-wrap">
         <canvas id="spec-chart" class="chart-canvas" height="140"></canvas>
-        <p class="chart-label">Spectre FFT [30–180 bpm]</p>
+        <p class="chart-label">Spectre FFT [45–180 bpm]</p>
       </div>
     </div>
   </div>
@@ -1094,9 +1094,15 @@ function stopRecording(){
   _liveFrozen = true;
   stopFrameCapture(); S.recorder.stop();
   if(ws&&ws.readyState===WebSocket.OPEN){
-    const capFps=S.stream.getVideoTracks()[0].getSettings().frameRate||S.measuredFps||30;
+    // fps réel = frames effectivement capturées / durée réelle écoulée — pas le
+    // réglage caméra nominal (getSettings().frameRate peu fiable sur Safari) ni
+    // la fréquence de la boucle de rendu (S.measuredFps, sans rapport avec la
+    // cadence réelle de capture des palm_rows via requestVideoFrameCallback).
+    const elapsedS=(performance.now()-S.startTs)/1000;
+    const realFps=(elapsedS>0&&_palmRows.length>0) ? _palmRows.length/elapsedS
+      : (S.stream.getVideoTracks()[0].getSettings().frameRate||S.measuredFps||30);
     S.analysing=true;
-    ws.send(JSON.stringify({type:'END', palm_rows:_palmRows, fps:capFps}));
+    ws.send(JSON.stringify({type:'END', palm_rows:_palmRows, fps:realFps}));
     statusEl.textContent=`Analyse CNN1D (${_palmRows.length} frames)…`;
   }
   btnRecord.disabled=true;
@@ -1106,7 +1112,11 @@ function finalizeRecording(){
   const ext=S.mimeType.includes('mp4')?'mp4':'webm';
   S.videoBlob=new Blob(S.chunks,{type:S.mimeType||'video/webm'});
   const elapsed=(performance.now()-S.startTs)/1000;
-  const fps=S.measuredFps||parseFloat(document.getElementById('fps-select').value);
+  // Même calcul que dans stopRecording (frames réellement capturées / durée
+  // réelle) — S.measuredFps mesure la boucle de rendu, pas la cadence de
+  // capture des palm_rows, donc ne doit pas servir de source de vérité ici.
+  const fps=(elapsed>0&&S.frameCount>0) ? S.frameCount/elapsed
+    : (S.measuredFps||parseFloat(document.getElementById('fps-select').value));
   document.getElementById('log-fps').textContent=fps.toFixed(2);
   document.getElementById('log-dur').textContent=elapsed.toFixed(3);
   document.getElementById('log-frames').textContent=S.frameCount;
