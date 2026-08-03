@@ -100,6 +100,53 @@ def _run_cnn1d_overlap(arr: np.ndarray, fps: float, model, clip_len: int = 512) 
     return rppg_full
 
 
+def _local_maxima(a: np.ndarray, min_val: float) -> np.ndarray:
+    """Indices des maxima locaux stricts au-dessus de min_val — implémentation
+    numpy pure (pas de dépendance scipy, cf. contrainte mémoire Render)."""
+    if len(a) < 3:
+        return np.array([], dtype=int)
+    is_max = (a[1:-1] > a[:-2]) & (a[1:-1] >= a[2:]) & (a[1:-1] >= min_val)
+    return np.where(is_max)[0] + 1
+
+
+def _pick_hr_harmonic(freqs_bpm: np.ndarray, spec: np.ndarray, band=(45.0, 180.0),
+                       harmonic_tol_bpm: float = 6.0,
+                       harmonic_weights=(0.7, 0.45)) -> tuple:
+    """Sélectionne le pic HR dans la bande cardiaque par sommation
+    harmonique (fondamental + 2e/3e harmonique pondérés, cf. subharmonic
+    summation) plutôt qu'un simple argmax — un artefact de dérive/mouvement
+    résiduel n'a normalement pas d'harmoniques cohérentes avec lui-même,
+    contrairement à un vrai pouls. Le bruit de fond contribue de façon
+    similaire au score de chaque candidat (il s'additionne aux deux), donc
+    ce qui fait la différence est bien l'énergie réelle aux harmoniques,
+    pas seulement l'amplitude brute du fondamental."""
+    band_mask = (freqs_bpm >= band[0]) & (freqs_bpm <= band[1])
+    freqs_b, spec_b = freqs_bpm[band_mask], spec[band_mask]
+    if len(spec_b) == 0:
+        return float("nan"), 0.0
+
+    idx_peaks = _local_maxima(spec_b, (np.median(spec_b) + 1e-9) * 1.15)
+    if len(idx_peaks) == 0:
+        idx_peaks = np.array([int(np.argmax(spec_b))])
+
+    def spec_near(f_bpm: float) -> float:
+        hmask = np.abs(freqs_bpm - f_bpm) <= harmonic_tol_bpm
+        return float(spec[hmask].max()) if hmask.any() else 0.0
+
+    def comb_score(f0: float) -> float:
+        s = spec_near(f0)
+        for k, w in zip((2, 3), harmonic_weights):
+            if k * f0 > freqs_bpm[-1]:
+                break
+            s += w * spec_near(k * f0)
+        return s
+
+    scores = [comb_score(freqs_b[i]) for i in idx_peaks]
+    best = idx_peaks[int(np.argmax(scores))]
+    confidence = float(spec_b[best] / (spec_b.max() + 1e-9))
+    return float(freqs_b[best]), confidence
+
+
 def run_cnn1d(palm_rows, fps, model):
     arr = np.array(palm_rows, dtype=np.float32)
     if arr.shape[0] < 30 or model is None:
@@ -116,7 +163,8 @@ def run_cnn1d(palm_rows, fps, model):
         spec      = np.abs(np.fft.rfft(rppg_d * np.hanning(N)))
         mask      = (freqs_bpm >= 45) & (freqs_bpm <= 180)
         freqs_m, spec_m = freqs_bpm[mask], spec[mask]
-        hr = round(float(freqs_m[spec_m.argmax()]), 1) if len(freqs_m) > 0 else float("nan")
+        hr_raw, _hr_conf = _pick_hr_harmonic(freqs_bpm, spec)
+        hr = round(hr_raw, 1) if len(freqs_m) > 0 and not np.isnan(hr_raw) else float("nan")
         step = max(1, N // 600)
         print(f"[CNN1D] HR = {hr} bpm ({N} frames, {fps:.2f} fps)")
         return {
