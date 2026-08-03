@@ -46,6 +46,20 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
 .placeholder p { font-family:var(--mono); font-size:.7rem; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
 
 /* BPM live visage — affiché en haut à gauche du canvas */
+/* ── Quality warnings overlay ── */
+#quality-warns {
+  position:absolute; bottom:48px; left:50%; transform:translateX(-50%);
+  display:flex; flex-direction:column; gap:5px; align-items:center;
+  z-index:6; pointer-events:none; width:90%;
+}
+.qwarn {
+  background:rgba(220,80,0,0.88); color:#fff;
+  font-family:var(--mono); font-size:.65rem; letter-spacing:.04em;
+  padding:4px 14px; border-radius:4px;
+  border-left:3px solid #ff7020; white-space:nowrap;
+  animation:qwarnIn .2s ease;
+}
+@keyframes qwarnIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:none} }
 .live-bpm { position:absolute; top:16px; left:16px; z-index:4;
   background:rgba(0,0,0,.55); border:1px solid rgba(255,255,255,.2); border-radius:6px;
   padding:6px 12px; display:none; }
@@ -184,6 +198,7 @@ header h1 { font-family:var(--mono); font-size:1rem; font-weight:600;
       <div class="lbl">BPM live</div>
       <span class="val" id="live-bpm-val">—</span><span class="unit">bpm</span>
     </div>
+    <div id="quality-warns"></div>
     <div class="placeholder" id="placeholder">
       <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
         <rect x="8" y="16" width="48" height="36" rx="4" stroke="#FFFFFF" stroke-width="2"/>
@@ -590,6 +605,94 @@ function drawROIs(W, H) {
   ctx.globalAlpha=1;
 }
 
+// ── Quality warnings ──────────────────────────────────────────────
+const QUALITY_THRESHOLDS = {
+  handMinArea : 0.07,   // bbox main / frame (coords normalisées)
+  palmMinLum  : 35,     // luminosité paume 0-255
+  bgMaxLum    : 210,    // luminosité fond 0-255
+};
+let _qwarnLast = '';
+let _cachedFaceLms = null; // cache pour maintenir l'overlay face si détection rate
+
+function _sampleLum(imgData, x0, y0, w, h) {
+  let sum = 0, n = 0;
+  const d = imgData.data, stride = imgData.width;
+  for(let dy = 0; dy < h; dy++) {
+    for(let dx = 0; dx < w; dx++) {
+      const i = ((y0 + dy) * stride + (x0 + dx)) * 4;
+      sum += 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+      n++;
+    }
+  }
+  return n > 0 ? sum / n : null;
+}
+
+function checkQuality() {
+  const warnEl = document.getElementById('quality-warns');
+  if(!warnEl) return;
+  if(!S.recording || !S.handLandmarks) { if(warnEl.innerHTML) warnEl.innerHTML=''; _qwarnLast=''; return; }
+
+  const lms = S.handLandmarks;
+  const warns = [];
+
+  // Bbox main en coords normalisées (espace vidéo naturel, non miroir)
+  let minX=1,maxX=0,minY=1,maxY=0;
+  lms.forEach(l => {
+    if(l.x<minX)minX=l.x; if(l.x>maxX)maxX=l.x;
+    if(l.y<minY)minY=l.y; if(l.y>maxY)maxY=l.y;
+  });
+  const handArea = (maxX - minX) * (maxY - minY);
+
+  // 1. Main trop loin
+  if(handArea < QUALITY_THRESHOLDS.handMinArea) {
+    warns.push('Rapprochez votre main de la caméra');
+  }
+
+  // 2. Visage derrière la main (nose tip = landmark 1)
+  const faceLms = S.landmarks || _cachedFaceLms;
+  if(faceLms) {
+    const nose = faceLms[1];
+    if(nose.x > minX && nose.x < maxX && nose.y > minY && nose.y < maxY) {
+      warns.push('Décalez votre visage vers la gauche');
+    }
+  }
+
+  // 3 & 4. Luminosité — on lit capCanv (non miroir, même espace que les landmarks)
+  if(capCanv.width > 0 && capCanv.height > 0) {
+    const CW = capCanv.width, CH = capCanv.height;
+    // Paume : centre autour du landmark 9 (MCP majeur)
+    const pc = lms[9];
+    const pr = Math.round(Math.min(CW, CH) * 0.04);
+    const px0 = Math.max(0, Math.round(pc.x * CW) - pr);
+    const py0 = Math.max(0, Math.round(pc.y * CH) - pr);
+    const pw  = Math.min(pr*2, CW - px0), ph = Math.min(pr*2, CH - py0);
+    if(pw > 0 && ph > 0) {
+      const palmImg = capCtx.getImageData(px0, py0, pw, ph);
+      const palmLum = _sampleLum(palmImg, 0, 0, pw, ph);
+      if(palmLum !== null && palmLum < QUALITY_THRESHOLDS.palmMinLum)
+        warns.push('Éclairez davantage votre paume');
+    }
+
+    // Fond : bande au-dessus du bbox main
+    const marginY = Math.round(CH * 0.04);
+    const bx0 = Math.max(0, Math.round(minX * CW));
+    const bx1 = Math.min(CW, Math.round(maxX * CW));
+    const by0 = Math.max(0, Math.round(minY * CH) - marginY);
+    const by1 = Math.max(0, Math.round(minY * CH));
+    if(bx1 > bx0 && by1 > by0) {
+      const bgImg = capCtx.getImageData(bx0, by0, bx1 - bx0, by1 - by0);
+      const bgLum = _sampleLum(bgImg, 0, 0, bx1 - bx0, by1 - by0);
+      if(bgLum !== null && bgLum > QUALITY_THRESHOLDS.bgMaxLum)
+        warns.push('Arrière-plan trop lumineux — évitez la lumière derrière vous');
+    }
+  }
+
+  const key = warns.join('|');
+  if(key === _qwarnLast) return;
+  _qwarnLast = key;
+  warnEl.innerHTML = warns.map(w => `<div class="qwarn">⚠ ${w}</div>`).join('');
+}
+
 // ── Dessin main (MediaPipe Hands) ─────────────────────────────────
 let _handAnimPhase = 0;
 const _HAND_PHASE_OFFSETS = PALM_ROIS.map((_,i)=>i*Math.PI/2);
@@ -784,7 +887,11 @@ function startMpLoop() {
     if(_faceLandmarker) {
       try {
         const r = _faceLandmarker.detectForVideo(video, now);
-        S.landmarks = (r.faceLandmarks && r.faceLandmarks[0]) || null;
+        const detected = (r.faceLandmarks && r.faceLandmarks[0]) || null;
+        if(detected) { S.landmarks = detected; _cachedFaceLms = detected; }
+        // si non détecté (ex: main devant), on garde le cache pour le rendu
+        else if(_cachedFaceLms) S.landmarks = _cachedFaceLms;
+        else S.landmarks = null;
       } catch(e) {}
     }
     if(_handLandmarker && _mpFrameN % 2 === 0) {
@@ -794,6 +901,7 @@ function startMpLoop() {
         if(S.handLandmarks) updateBpmEstimate();
       } catch(e) {}
     }
+    checkQuality();
     if(!S.recording) {
       const hasPalm = !!S.handLandmarks;
       btnRecord.disabled = !hasPalm;
